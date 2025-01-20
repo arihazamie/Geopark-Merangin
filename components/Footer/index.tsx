@@ -16,12 +16,12 @@ interface socialLinks {
 const socialLinks: socialLinks[] = [
   {
     imgSrc: "/images/Footer/facebook.svg",
-    link: "https://www.facebook.com/geopark.jambi?_rdc=1&_rdr",
+    link: "https://www.facebook.com/geopark.jambi",
     width: 10,
   },
   {
     imgSrc: "/images/Footer/insta.svg",
-    link: "https://www.instagram.com/geoparkmeranginjambi/",
+    link: "https://www.instagram.com/geoparkmeranginjambi",
     width: 14,
   },
   {
@@ -66,7 +66,7 @@ const footer = () => {
           </div>
           <h3 className="mt-5 mb-4 text-xs font-medium text-textbl lg:mb-16">
             {" "}
-            "UNESCO Global Geopark Merangin Jambi <br />
+            UNESCO Global Geopark Merangin Jambi <br />
           </h3>
           <div className="flex gap-4">
             {socialLinks.map((items, i) => (

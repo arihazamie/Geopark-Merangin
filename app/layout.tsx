@@ -1,6 +1,6 @@
 import "./globals.css";
-import Navbar from "./components/Navbar/index";
-import Footer from "./components/Footer/Footer";
+import Navbar from "../components/Navbar/index";
+import Footer from "../components/Footer";
 
 export const metadata = {
   title: "Geopark Merangin Jambi",
