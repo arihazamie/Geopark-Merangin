@@ -61,7 +61,7 @@ const Banner = () => {
               />
             </div>
             <Image
-              src="/images/main/banner.png"
+              src="/images/Main/banner.png"
               alt="Banner-Dua"
               width={896}
               height={670}
