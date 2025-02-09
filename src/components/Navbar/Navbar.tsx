@@ -94,10 +94,7 @@ const Navbar = () => {
                   <Button onClick={() => signOut()}>Logout</Button>
                 ) : (
                   <div className="space-y-4">
-                    <Link
-                      href="/auth/login"
-                      children="Login"
-                    />
+                    <Link href="/auth/login">Login</Link>
                   </div>
                 )}
               </div>
