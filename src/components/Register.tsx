@@ -95,7 +95,7 @@ const RegisterPage = () => {
               id="email"
               type="email"
               {...register("email")}
-              className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-indigo-600"
+              className="w-full px-4 py-2 text-black border rounded-md focus:ring-2 focus:ring-indigo-600"
             />
             {/* Menampilkan pesan error validasi untuk email */}
             {errors.email && (
@@ -113,7 +113,7 @@ const RegisterPage = () => {
               id="password"
               type="password"
               {...register("password")}
-              className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-indigo-600"
+              className="w-full px-4 py-2 text-black border rounded-md focus:ring-2 focus:ring-indigo-600"
             />
             {/* Menampilkan pesan error validasi untuk password */}
             {errors.password && (
@@ -146,7 +146,7 @@ const RegisterPage = () => {
                 id="notelp"
                 type="text"
                 {...register("notelp")}
-                className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-indigo-600"
+                className="w-full px-4 py-2 text-black border rounded-md focus:ring-2 focus:ring-indigo-600"
               />
               {/* Menampilkan pesan error validasi untuk notelp */}
               {errors.notelp && (
