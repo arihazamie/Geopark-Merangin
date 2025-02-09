@@ -1,0 +1,115 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enum untuk Role yang tersedia dalam sistem
+// ADMIN: Role untuk administrator
+// PENGELOLA: Role untuk pengguna dengan hak pengelolaan
+// PENGGUNA: Role untuk pengguna biasa
+enum Role {
+  ADMIN
+  PENGELOLA
+  PENGGUNA
+}
+
+// Model utama untuk menyimpan informasi pengguna
+// Setiap pengguna memiliki email, password, dan role
+// Jika pengguna adalah pengelola, akan ada data tambahan di tabel Pengelola
+// Jika pengguna adalah pengguna biasa, akan ada data tambahan di tabel Pengguna
+  model UserBase {
+    id        String   @id @default(cuid()) // ID unik untuk setiap pengguna
+    email     String   @unique // Email unik untuk autentikasi
+    password  String // Kata sandi yang dienkripsi
+    role      Role // Role pengguna (ADMIN, PENGELOLA, atau PENGGUNA)
+    createdAt DateTime @default(now()) // Timestamp saat akun dibuat
+    updatedAt DateTime @updatedAt // Timestamp saat akun diperbarui
+
+    // Relasi opsional ke Pengelola dan Pengguna
+    pengelola Pengelola?
+    pengguna  Pengguna?
+    
+    @@map("users") // Nama tabel di database menjadi "users"
+    @@index([role]) // Index untuk mempercepat pencarian berdasarkan role
+  }
+
+  // Model khusus untuk Pengelola
+  // Pengelola memiliki nomor telepon unik dan status verifikasi
+  model Pengelola {
+    id         String   @id @default(cuid()) // ID unik untuk pengelola
+    userId     String   @unique // ID dari UserBase (relasi)
+    notelp     String   @unique // Nomor telepon unik
+    isVerified Boolean  @default(false) // Status verifikasi akun
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @updatedAt
+
+    user       UserBase @relation(fields: [userId], references: [id], onDelete: Cascade) // Relasi ke UserBase
+    posts      Post[] // Relasi ke post yang dibuat oleh pengelola
+
+    @@map("pengelola")
+  }
+
+  // Model untuk Pengguna biasa
+  // Pengguna dapat memberikan komentar pada post
+  model Pengguna {
+    id        String   @id @default(cuid()) // ID unik pengguna
+    userId    String   @unique // ID dari UserBase (relasi)
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    user      UserBase @relation(fields: [userId], references: [id], onDelete: Cascade) // Relasi ke UserBase
+    komentar  Komentar[] // Relasi ke komentar yang dibuat oleh pengguna
+
+    @@map("pengguna")
+  }
+
+// Model untuk Post
+// Post dibuat oleh Pengelola dan dapat memiliki beberapa komentar
+model Post {
+  id        String   @id @default(cuid()) // ID unik untuk post
+  title     String // Judul post
+  content   String // Isi konten post
+  gambar    String? // URL gambar terkait (opsional)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  published Boolean  @default(false) // Status publikasi post
+
+  authorId  String // ID pengelola yang membuat post
+  author    Pengelola @relation(fields: [authorId], references: [id], onDelete: Cascade) // Relasi ke Pengelola
+
+  komentar  Komentar[] // Relasi ke komentar
+
+  @@map("posts")
+}
+
+
+// Model untuk Komentar
+// Komentar dibuat oleh Pengguna dan terkait dengan sebuah Post
+model Komentar {
+  id        String   @id @default(cuid()) // ID unik komentar
+  content   String // Isi komentar
+  gambar    String? // URL gambar terkait (opsional)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  authorId  String // ID pengguna yang membuat komentar
+  author    Pengguna  @relation(fields: [authorId], references: [id], onDelete: Cascade) // Relasi ke Pengguna
+  postId    String // ID post yang dikomentari
+  post      Post      @relation(fields: [postId], references: [id], onDelete: Cascade) // Relasi ke Post
+
+  @@map("komentar")
+}
+
+// Model untuk menyimpan gambar
+// Gambar dapat digunakan di berbagai tempat seperti post dan komentar
+model Image {
+  id        String   @id @default(uuid()) // ID unik gambar
+  url       String // URL penyimpanan gambar
+  createdAt DateTime @default(now())
+
+  @@map("images")
+}

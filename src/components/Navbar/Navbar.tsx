@@ -1,11 +1,13 @@
+"use client";
 import { Disclosure } from "@headlessui/react";
-import Link from "next/link";
 import React from "react";
 import { Bars3Icon } from "@heroicons/react/24/outline";
 import Drawer from "./Drawer";
 import Drawerdata from "./Drawerdata";
-import Signindialog from "./Signindialog";
 import Image from "next/image";
+import Link from "@/components/Link";
+import { useSession, signOut } from "next-auth/react";
+import { Button } from "../ui/button";
 
 interface NavigationItem {
   name: string;
@@ -14,18 +16,26 @@ interface NavigationItem {
 }
 
 const navigation: NavigationItem[] = [
-  { name: "Home", href: "#home-section", current: false },
+  { name: "Home", href: "/", current: false },
   { name: "About us", href: "#geopark", current: false },
   { name: "Recipe", href: "#features", current: false },
   { name: "Gallery", href: "#gallery-section", current: false },
 ];
 
-function classNames(...classes: string[]) {
-  return classes.filter(Boolean).join(" ");
-}
-
 const Navbar = () => {
   const [isOpen, setIsOpen] = React.useState(false);
+
+  // Menggunakan hook useSession untuk mendapatkan status session
+  const { data: session, status } = useSession();
+
+  // Menampilkan loading state jika session sedang dimuat
+  if (status === "loading") {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p className="text-gray-600">Loading...</p>
+      </div>
+    );
+  }
 
   return (
     <Disclosure
@@ -72,20 +82,24 @@ const Navbar = () => {
                     <Link
                       key={item.name}
                       href={item.href}
-                      className={classNames(
-                        item.current
-                          ? "bg-black"
-                          : "navlinks hover:opacity-100",
-                        "px-3 py-4 rounded-md text-lg font-normal opacity-50 hover:text-black space-links"
-                      )}
-                      aria-current={item.href ? "page" : undefined}>
+                      className="px-2 rounded-lg hover:bg-lightgrey/10">
                       {item.name}
                     </Link>
                   ))}
                 </div>
               </div>
               <div className="hidden gap-6 lg:flex">
-                <Signindialog />
+                {/* Konten Berdasarkan Status Session */}
+                {session ? (
+                  <Button onClick={() => signOut()}>Logout</Button>
+                ) : (
+                  <div className="space-y-4">
+                    <Link
+                      href="/auth/login"
+                      children="Login"
+                    />
+                  </div>
+                )}
               </div>
             </div>
 

@@ -1,6 +1,7 @@
 import "./globals.css";
-import Navbar from "../components/Navbar/index";
-import Footer from "../components/Footer";
+import Navbar from "../components/Navbar/Navbar";
+import Footer from "../components/Home/footer";
+import { Providers } from "@/lib/providers";
 
 export const metadata = {
   title: "Geopark Merangin Jambi",
@@ -16,9 +17,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <Navbar />
-        {children}
-        <Footer />
+        <Providers>
+          <Navbar />
+          {children}
+          <Footer />
+        </Providers>
       </body>
     </html>
   );
