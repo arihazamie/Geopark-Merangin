@@ -1,9 +1,11 @@
 "use client";
 
+import type React from "react";
+
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { User, Menu } from "lucide-react";
+import { Home, MapPin, Calendar, FileText, Menu, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DarkModeButton } from "@/components/Reuseable/DarkMode";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -18,18 +20,24 @@ import {
 import { useSession } from "next-auth/react";
 import { ProfileDialog } from "@/components/Reuseable/ProfileDialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { usePathname } from "next/navigation";
 
 // Define types for navigation items
 interface NavItem {
   href: string;
   label: string;
+  icon: React.ReactNode;
 }
 
 const Listitem: NavItem[] = [
-  { href: "/", label: "Beranda" },
-  { href: "/wisata", label: "Wisata" },
-  { href: "/event", label: "Event" },
-  { href: "/artikel", label: "Artikel" },
+  { href: "/", label: "Beranda", icon: <Home className="w-5 h-5" /> },
+  { href: "/wisata", label: "Wisata", icon: <MapPin className="w-5 h-5" /> },
+  { href: "/event", label: "Event", icon: <Calendar className="w-5 h-5" /> },
+  {
+    href: "/artikel",
+    label: "Artikel",
+    icon: <FileText className="w-5 h-5" />,
+  },
 ];
 
 // Props for NavbarItem
@@ -39,25 +47,31 @@ interface NavbarItemProps {
 }
 
 function NavbarItem({ isAdmin, isPengelola }: NavbarItemProps) {
+  const pathname = usePathname();
+
   return (
     <NavigationMenu className="z-50 hidden md:flex">
-      <NavigationMenuList className="flex items-center gap-1">
-        {Listitem.map((item) => (
-          <NavigationMenuItem key={item.href}>
-            <Link
-              href={item.href}
-              legacyBehavior
-              passHref>
-              <NavigationMenuLink
-                className={cn(
-                  navigationMenuTriggerStyle(),
-                  "text-base font-medium rounded-xl px-4 py-2"
-                )}>
-                {item.label}
-              </NavigationMenuLink>
-            </Link>
-          </NavigationMenuItem>
-        ))}
+      <NavigationMenuList className="flex items-center gap-2">
+        {Listitem.map((item) => {
+          const isActive = pathname === item.href;
+          return (
+            <NavigationMenuItem key={item.href}>
+              <Link
+                href={item.href}
+                legacyBehavior
+                passHref>
+                <NavigationMenuLink
+                  className={cn(
+                    navigationMenuTriggerStyle(),
+                    "text-base font-medium rounded-xl px-4 py-2 transition-all duration-200",
+                    isActive ? "bg-primary/10 text-primary" : ""
+                  )}>
+                  {item.label}
+                </NavigationMenuLink>
+              </Link>
+            </NavigationMenuItem>
+          );
+        })}
         {isAdmin && (
           <NavigationMenuItem>
             <Link
@@ -67,7 +81,10 @@ function NavbarItem({ isAdmin, isPengelola }: NavbarItemProps) {
               <NavigationMenuLink
                 className={cn(
                   navigationMenuTriggerStyle(),
-                  "text-base font-medium rounded-xl px-4 py-2"
+                  "text-base font-medium rounded-xl px-4 py-2",
+                  pathname.startsWith("/dashboard/admin")
+                    ? "bg-primary/10 text-primary"
+                    : ""
                 )}>
                 Dashboard
               </NavigationMenuLink>
@@ -83,7 +100,10 @@ function NavbarItem({ isAdmin, isPengelola }: NavbarItemProps) {
               <NavigationMenuLink
                 className={cn(
                   navigationMenuTriggerStyle(),
-                  "text-base font-medium rounded-xl px-4 py-2"
+                  "text-base font-medium rounded-xl px-4 py-2",
+                  pathname.startsWith("/dashboard/pengelola")
+                    ? "bg-primary/10 text-primary"
+                    : ""
                 )}>
                 Dashboard
               </NavigationMenuLink>
@@ -95,34 +115,77 @@ function NavbarItem({ isAdmin, isPengelola }: NavbarItemProps) {
   );
 }
 
-function MobileNav() {
+function MobileNav({ isLoggedIn }: { isLoggedIn: boolean }) {
+  const pathname = usePathname();
+  const [open, setOpen] = useState(false);
+
   return (
-    <Sheet>
+    <Sheet
+      open={open}
+      onOpenChange={setOpen}>
       <SheetTrigger
         asChild
         className="md:hidden">
         <Button
           variant="ghost"
-          size="icon">
+          size="icon"
+          className="border rounded-full shadow-sm bg-background/80 backdrop-blur-sm border-border/50 hover:bg-background/90">
           <Menu className="w-5 h-5" />
           <span className="sr-only">Toggle menu</span>
         </Button>
       </SheetTrigger>
       <SheetContent
         side="left"
-        className="flex flex-col gap-6 pr-10">
-        <div className="flex flex-col gap-3 mt-8">
-          <h3 className="text-lg font-semibold">Menu</h3>
-          <div className="flex flex-col gap-2 pl-2">
-            {Listitem.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="transition-colors text-muted-foreground hover:text-foreground">
-                {item.label}
-              </Link>
-            ))}
+        className="flex flex-col gap-6 pr-10 border-r border-border/50 bg-background/95 backdrop-blur-md w-[280px]">
+        <div className="flex items-center gap-3 pl-1 mt-4 mb-6">
+          <Image
+            src="/images/Logo/logo.webp"
+            alt="Geopark Merangin Logo"
+            width={48}
+            height={48}
+            className="object-contain w-12 h-12"
+          />
+          <span className="font-bold text-transparent text-md bg-gradient-to-r from-primary to-primary/70 bg-clip-text">
+            Geopark Merangin
+          </span>
+        </div>
+
+        <div className="flex flex-col gap-5 mt-2">
+          <div className="flex flex-col gap-1">
+            {Listitem.map((item) => {
+              const isActive = pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setOpen(false)}
+                  className={cn(
+                    "flex items-center gap-3 py-3 px-4 transition-all rounded-lg",
+                    isActive
+                      ? "bg-primary/10 text-primary font-medium"
+                      : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                  )}>
+                  {item.icon}
+                  <span className="font-medium">{item.label}</span>
+                </Link>
+              );
+            })}
           </div>
+
+          {!isLoggedIn && (
+            <div className="px-4 mt-4">
+              <Button
+                className="w-full rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground"
+                onClick={() => setOpen(false)}>
+                <Link
+                  href="/auth/login"
+                  className="flex items-center justify-center w-full gap-2">
+                  <LogIn className="w-4 h-4" />
+                  <span>Masuk</span>
+                </Link>
+              </Button>
+            </div>
+          )}
         </div>
       </SheetContent>
     </Sheet>
@@ -165,22 +228,24 @@ export default function Navbar() {
   return (
     <div
       className={cn(
-        "sticky z-50 px-4 py-3 mx-auto  transition-all duration-300 shadow-xl sm:px-6 top-5 rounded-2xl max-w-7xl ",
-        { "shadow-md": scrolled }
+        "sticky z-50 px-4 py-3 mx-auto transition-all duration-300 sm:px-6 top-5 rounded-2xl max-w-7xl bg-background/80 backdrop-blur-md",
+        scrolled
+          ? "shadow-lg shadow-primary/5 border border-border/30"
+          : "shadow-md shadow-primary/5"
       )}>
       <div className="relative flex items-center justify-between">
         {/* LOGO */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <Image
-            src="/images/Logo/icon.webp"
-            alt="logo"
-            width={64}
-            height={64}
-            className="sm:w-[48px] sm:h-[48px] w-full h-full"
+            src="/images/Logo/logo.webp"
+            alt="Geopark Merangin Logo"
+            width={40}
+            height={40}
+            className="object-contain w-10 h-10"
           />
           <Link
             href="/"
-            className="ml-3 text-lg font-semibold sm:text-xl">
+            className="hidden text-lg font-semibold text-transparent sm:block bg-gradient-to-r from-primary to-primary/70 bg-clip-text">
             Geopark Merangin
           </Link>
         </div>
@@ -194,15 +259,15 @@ export default function Navbar() {
         </div>
 
         {/* RIGHT SIDE - LOGIN */}
-        <div className="flex items-center gap-3 sm:gap-4">
+        <div className="flex items-center gap-3">
           {isLoggedIn ? (
             <ProfileDialog
               trigger={
                 <Button
                   variant="outline"
                   size="icon"
-                  className="w-10 h-10 rounded-full bg-whiteColor/10 text-whiteColor border-whiteColor/20 hover:bg-whiteColor/20 backdrop-blur-sm">
-                  <Avatar className="w-8 h-8">
+                  className="rounded-full shadow-sm w-9 h-9 sm:w-10 sm:h-10 bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 backdrop-blur-sm">
+                  <Avatar className="w-7 h-7 sm:w-8 sm:h-8">
                     <AvatarImage
                       src={currentUser.image}
                       alt={currentUser.name}
@@ -218,12 +283,13 @@ export default function Navbar() {
             />
           ) : (
             <Button
-              variant="outline"
-              className="rounded-xl bg-whiteColor/10 text-whiteColor border-whiteColor/20 hover:bg-whiteColor/20 backdrop-blur-sm">
+              variant="default"
+              size="sm"
+              className="hidden rounded-full shadow-sm bg-primary hover:bg-primary/90 text-primary-foreground md:flex">
               <Link
                 href="/auth/login"
                 className="flex items-center gap-1.5">
-                <User className="w-4 h-4" />
+                <LogIn className="w-4 h-4" />
                 <span>Masuk</span>
               </Link>
             </Button>
@@ -232,7 +298,7 @@ export default function Navbar() {
         </div>
 
         {/* MOBILE NAV */}
-        <MobileNav />
+        <MobileNav isLoggedIn={isLoggedIn} />
       </div>
     </div>
   );
