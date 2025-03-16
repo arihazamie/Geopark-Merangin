@@ -1,0 +1,168 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+enum Role {
+  ADMIN      // Peran untuk admin sistem
+  PENGELOLA  // Peran untuk pengelola wisata dan event
+  PENGGUNA   // Peran untuk pengguna biasa (wisatawan)
+}
+
+
+model Admin {
+  id               Int       @id @default(autoincrement()) // ID unik untuk admin
+  name             String    // Nama admin
+  notelp           String    // Nomor telepon admin
+  email            String    @unique // Email admin (unik)
+  image            String    // URL gambar atau thumbnail admin
+  role             Role      @default(ADMIN) // Peran admin, default: ADMIN
+  password         String    // Kata sandi admin (harus di-hash di aplikasi)
+  createdAt        DateTime  @default(now()) // Tanggal dan waktu pembuatan akun admin
+  updatedAt        DateTime  @updatedAt // Tanggal dan waktu terakhir admin diupdate
+  
+  // Relasi untuk data yang diupdate (diedit/hapus) oleh admin
+  updatedWisatas   Wisata[]  
+  updatedEvents    Event[]   
+  updatedUlasans   Ulasan[]  
+  updateArtikel    Artikel[] 
+  verifiedPengelola Pengelola[] 
+}
+
+
+model Pengelola {
+  id          Int      @id @default(autoincrement()) // ID unik untuk pengelola
+  name        String   // Nama pengelola
+  notelp      String   // Nomor telepon pengelola
+  email       String   @unique // Email pengelola (unik)
+  role        Role     @default(PENGELOLA) // Peran pengelola, default: PENGELOLA
+  image       String   // URL gambar atau thumbnail pengelola
+  password    String   // Kata sandi pengelola (harus di-hash di aplikasi)
+  isVerified  Boolean  @default(false) // Status verifikasi pengelola (false jika belum diverifikasi)
+  createdAt   DateTime @default(now()) // Tanggal dan waktu pembuatan akun pengelola
+  updatedAt   DateTime @updatedAt // Tanggal dan waktu terakhir data pengelola diupdate
+  
+  // Relasi untuk data yang dibuat atau diubah oleh pengelola
+  wisatas     Wisata[]  // Wisata yang dikelola
+  events      Event[]   // Event yang dikelola
+  artikel     Artikel[] // Artikel yang dikelola
+
+  // Relasi baru: Pengelola diverifikasi oleh Admin (opsional)
+  verifiedById Int?     // ID admin yang memverifikasi pengelola (opsional)
+  verifiedBy   Admin?   @relation(fields: [verifiedById], references: [id], onDelete: SetNull)
+}
+
+
+model Pengguna {
+  id        Int       @id @default(autoincrement()) // ID unik untuk pengguna
+  name      String    // Nama pengguna
+  notelp    String    // Nomor telepon pengguna
+  email     String    @unique // Email pengguna (unik)
+  role      Role      @default(PENGGUNA) // Peran pengguna, default: PENGGUNA
+  image     String    // URL gambar atau thumbnail pengguna
+  password  String    // Kata sandi pengguna (harus di-hash di aplikasi)
+  createdAt DateTime  @default(now()) // Tanggal dan waktu pembuatan akun pengguna
+  updatedAt DateTime  @updatedAt // Tanggal dan waktu terakhir data pengguna diupdate
+  
+  ulasans   Ulasan[]  // Koleksi ulasan yang dibuat oleh pengguna
+}
+
+
+model Wisata {
+  id           Int       @id @default(autoincrement()) // ID unik untuk destinasi wisata
+  name         String    @db.VarChar(100) // Nama destinasi wisata (maksimal 100 karakter)
+  description  String    @db.Text // Deskripsi lengkap destinasi wisata
+  location     String    @db.VarChar(200) // Lokasi atau alamat destinasi wisata
+  type         String?   @db.VarChar(50) // Tipe destinasi wisata (contoh: air terjun, museum, dll.)
+  isVerified   Boolean   @default(false) // Status verifikasi destinasi wisata (false jika belum diverifikasi)
+  reviews      Int?      @default(0) // Jumlah review yang diterima destinasi wisata
+  latitude     Float     @db.DoublePrecision // Koordinat lintang (latitude)
+  longitude    Float     @db.DoublePrecision // Koordinat bujur (longitude)
+  images       String[]  // Array URL gambar (gallery) dari destinasi wisata
+  createdAt    DateTime  @default(now()) // Tanggal dan waktu pembuatan data wisata
+  updatedAt    DateTime  @updatedAt // Tanggal dan waktu terakhir data wisata diupdate
+
+  // Data dibuat atau diubah oleh Pengelola
+  pengelolaId  Int?      // ID pengelola yang membuat atau mengubah data (opsional)
+  pengelola    Pengelola? @relation(fields: [pengelolaId], references: [id], onDelete: SetNull)
+
+  // Data diupdate (diedit/hapus) oleh Admin (opsional)
+  updatedById  Int?      // ID admin yang mengupdate data (opsional)
+  updatedBy    Admin?     @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+
+  events       Event[]   // Event yang terkait dengan destinasi wisata
+  ulasans      Ulasan[]  // Ulasan yang diberikan oleh pengguna terhadap destinasi wisata
+}
+
+
+model Artikel {
+  id          Int       @id @default(autoincrement()) // ID unik untuk artikel
+  title       String    @db.VarChar(100) // Judul artikel (maksimal 100 karakter)
+  description String    @db.Text // Deskripsi singkat artikel
+  content     String    @db.Text // Konten atau isi lengkap artikel
+  image       String    // URL gambar atau thumbnail artikel
+  isVerified  Boolean   @default(false) // Status verifikasi artikel (false jika belum diverifikasi)
+  createdAt   DateTime  @default(now()) // Tanggal dan waktu pembuatan artikel
+  updatedAt   DateTime  @updatedAt // Tanggal dan waktu terakhir artikel diupdate
+
+  // Data dibuat atau diubah oleh Pengelola
+  pengelolaId Int?      // ID pengelola yang membuat artikel (opsional)
+  pengelola   Pengelola? @relation(fields: [pengelolaId], references: [id])
+
+  // Data diupdate (diedit/hapus) oleh Admin (opsional)
+  updatedById Int?      // ID admin yang mengupdate artikel (opsional)
+  updatedBy   Admin?    @relation(fields: [updatedById], references: [id])
+
+  ulasans     Ulasan[]  // Ulasan yang diberikan oleh pengguna terhadap artikel
+}
+
+
+model Event {
+  id          Int       @id @default(autoincrement()) // ID unik untuk event
+  title       String    // Judul event
+  description String    // Deskripsi lengkap event
+  image       String    // URL gambar atau thumbnail event
+  isVerified  Boolean   @default(false) // Status verifikasi event
+  startDate   DateTime  // Tanggal dan waktu mulai event
+  endDate     DateTime  // Tanggal dan waktu selesai event
+  createdAt   DateTime  @default(now()) // Tanggal dan waktu pembuatan data event
+  updatedAt   DateTime  @updatedAt // Tanggal dan waktu terakhir event diupdate
+
+  // Relasi ke Wisata terkait
+  wisataId    Int       // ID destinasi wisata yang terkait dengan event ini
+  wisata      Wisata    @relation(fields: [wisataId], references: [id])
+
+  // Data dibuat atau diubah oleh Pengelola
+  pengelolaId Int?      // ID pengelola yang membuat atau mengubah event (opsional)
+  pengelola   Pengelola? @relation(fields: [pengelolaId], references: [id])
+
+  ulasans     Ulasan[]  // Ulasan yang diberikan oleh pengguna terhadap event
+
+  // Data diupdate (diedit/hapus) oleh Admin (opsional)
+  updatedById Int?      // ID admin yang mengupdate event (opsional)
+  updatedBy   Admin?    @relation(fields: [updatedById], references: [id])
+}
+
+
+model Ulasan {
+  id          Int       @id @default(autoincrement())
+  rating      Int?      @default(0)
+  comment     String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  wisataId    Int?
+  wisata      Wisata?   @relation(fields: [wisataId], references: [id])
+  artikelId   Int?
+  artikel     Artikel?  @relation(fields: [artikelId], references: [id])
+  eventId     Int?
+  event       Event?    @relation(fields: [eventId], references: [id])
+  penggunaId  Int
+  pengguna    Pengguna  @relation(fields: [penggunaId], references: [id])
+  updatedById Int?
+  updatedBy   Admin?    @relation(fields: [updatedById], references: [id])
+}
