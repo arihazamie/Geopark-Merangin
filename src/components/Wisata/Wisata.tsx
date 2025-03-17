@@ -1,12 +1,15 @@
 "use client";
 
+import type React from "react";
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { MapPin, Star, Calendar, CheckCircle } from "lucide-react";
+import { MapPin, Star, Calendar, CheckCircle, Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 // Define the types based on your Prisma schema and API response
 interface Review {
@@ -44,8 +47,12 @@ interface Attraction {
 
 export default function HomePage() {
   const [attractions, setAttractions] = useState<Attraction[]>([]);
+  const [filteredAttractions, setFilteredAttractions] = useState<Attraction[]>(
+    []
+  );
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
   useEffect(() => {
     const fetchAttractions = async () => {
@@ -70,10 +77,17 @@ export default function HomePage() {
           throw new Error(data.error || "Failed to load attractions");
         }
 
-        setAttractions(data.data || []);
+        // Only store verified attractions
+        const verifiedAttractions = (data.data || []).filter(
+          (attraction: Attraction) => attraction.isVerified
+        );
+
+        setAttractions(verifiedAttractions);
+        setFilteredAttractions(verifiedAttractions);
       } catch (err) {
         setError(err instanceof Error ? err.message : "An error occurred");
         setAttractions([]);
+        setFilteredAttractions([]);
       } finally {
         setLoading(false);
       }
@@ -82,10 +96,46 @@ export default function HomePage() {
     fetchAttractions();
   }, []);
 
+  // Handle search functionality
+  useEffect(() => {
+    if (searchQuery.trim() === "") {
+      setFilteredAttractions(attractions);
+      return;
+    }
+
+    const query = searchQuery.toLowerCase();
+    const filtered = attractions.filter(
+      (attraction) =>
+        attraction.name.toLowerCase().includes(query) ||
+        attraction.location.toLowerCase().includes(query) ||
+        attraction.description.toLowerCase().includes(query)
+    );
+
+    setFilteredAttractions(filtered);
+  }, [searchQuery, attractions]);
+
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-      <section className="px-4 py-12">
+    <div className="min-h-screen">
+      <section className="px-4 py-8">
         <div className="container mx-auto">
+          {/* Search bar */}
+          <div className="relative max-w-md mx-auto mb-8">
+            <div className="relative">
+              <Search className="absolute w-4 h-4 transform -translate-y-1/2 left-3 top-1/2 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Search wisata..."
+                value={searchQuery}
+                onChange={handleSearch}
+                className="w-full pl-10"
+              />
+            </div>
+          </div>
+
           {error && (
             <Alert
               variant="destructive"
@@ -117,78 +167,82 @@ export default function HomePage() {
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {attractions.map((attraction) => (
-                <Link
-                  href={`/wisata/${attraction.id}`}
-                  key={attraction.id}
-                  className="block group">
-                  <div className="overflow-hidden transition-shadow duration-300 bg-white shadow-md rounded-xl hover:shadow-lg">
-                    <div className="relative overflow-hidden h-60">
-                      <Image
-                        src={attraction.images[0] || "/placeholder.svg"}
-                        alt={attraction.name}
-                        fill
-                        className="object-cover transition-transform duration-300 group-hover:scale-105"
-                      />
-                      {attraction.isVerified && (
-                        <div className="absolute flex items-center gap-1 px-2 py-1 text-xs font-medium text-white bg-blue-600 rounded-full top-3 right-3">
-                          <CheckCircle size={12} />
-                          <span>Verified</span>
+            <>
+              {filteredAttractions.length > 0 ? (
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {filteredAttractions.map((attraction) => (
+                    <Link
+                      href={`/wisata/${attraction.id}`}
+                      key={attraction.id}
+                      className="block group">
+                      <div className="overflow-hidden transition-shadow duration-300 bg-white shadow-md rounded-xl hover:shadow-lg">
+                        <div className="relative overflow-hidden h-60">
+                          <Image
+                            src={attraction.images[0] || "/placeholder.svg"}
+                            alt={attraction.name}
+                            fill
+                            className="object-cover transition-transform duration-300 group-hover:scale-105"
+                          />
+                          <div className="absolute flex items-center gap-1 px-2 py-1 text-xs font-medium text-white bg-blue-600 rounded-full top-3 right-3">
+                            <CheckCircle size={12} />
+                            <span>Verified</span>
+                          </div>
                         </div>
-                      )}
-                    </div>
-                    <div className="p-5">
-                      <div className="flex items-center gap-2 mb-2 text-sm text-blue-600">
-                        <MapPin size={16} />
-                        <span>{attraction.location}</span>
+                        <div className="p-5">
+                          <div className="flex items-center gap-2 mb-2 text-sm text-blue-600">
+                            <MapPin size={16} />
+                            <span>{attraction.location}</span>
+                          </div>
+                          <h3 className="mb-2 text-xl font-bold transition-colors group-hover:text-blue-600">
+                            {attraction.name}
+                          </h3>
+                          <p className="mb-4 text-sm text-muted-foreground line-clamp-2">
+                            {attraction.description}
+                          </p>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1">
+                              <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                              <span className="font-medium">
+                                {attraction.reviews.length > 0
+                                  ? (
+                                      attraction.reviews.reduce(
+                                        (acc, review) => acc + review.rating,
+                                        0
+                                      ) / attraction.reviews.length
+                                    ).toFixed(1)
+                                  : "N/A"}
+                              </span>
+                              <span className="text-sm text-muted-foreground">
+                                ({attraction.reviews.length} reviews)
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                              <Calendar size={14} />
+                              <span>
+                                {new Date(
+                                  attraction.createdAt
+                                ).toLocaleDateString()}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                      <h3 className="mb-2 text-xl font-bold transition-colors group-hover:text-blue-600">
-                        {attraction.name}
-                      </h3>
-                      <p className="mb-4 text-sm text-muted-foreground line-clamp-2">
-                        {attraction.description}
-                      </p>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1">
-                          <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-                          <span className="font-medium">
-                            {attraction.reviews.length > 0
-                              ? (
-                                  attraction.reviews.reduce(
-                                    (acc, review) => acc + review.rating,
-                                    0
-                                  ) / attraction.reviews.length
-                                ).toFixed(1)
-                              : "N/A"}
-                          </span>
-                          <span className="text-sm text-muted-foreground">
-                            ({attraction.reviews.length} reviews)
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                          <Calendar size={14} />
-                          <span>
-                            {new Date(
-                              attraction.createdAt
-                            ).toLocaleDateString()}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-
-          {!loading && attractions.length === 0 && !error && (
-            <div className="py-12 text-center">
-              <h3 className="mb-2 text-xl font-medium">No attractions found</h3>
-              <p className="mb-6 text-muted-foreground">
-                There are no tourist attractions available at the moment.
-              </p>
-            </div>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-12 text-center">
+                  <h3 className="mb-2 text-xl font-medium">
+                    No verified attractions found
+                  </h3>
+                  <p className="mb-6 text-muted-foreground">
+                    {searchQuery.trim() !== ""
+                      ? "No verified attractions match your search criteria."
+                      : "There are no verified tourist attractions available at the moment."}
+                  </p>
+                </div>
+              )}
+            </>
           )}
         </div>
       </section>

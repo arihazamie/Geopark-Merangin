@@ -2,374 +2,248 @@
 
 import type React from "react";
 
-import { useEffect, useState, useCallback } from "react";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import Link from "next/link";
+import { useState, useEffect } from "react";
 import Image from "next/image";
-import { Search, Calendar, User, Clock, X } from "lucide-react";
+import Link from "next/link";
+import { Calendar, Search, ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { format, parseISO } from "date-fns";
-import { id } from "date-fns/locale";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
+
+interface Pengelola {
+  id: number;
+  name: string;
+}
+
+interface UpdatedBy {
+  id: number;
+  name: string;
+}
 
 interface Article {
   id: number;
   title: string;
-  slug: string;
   content: string;
-  summary?: string;
-  image?: string;
-  images?: string[];
-  category?: string;
-  tags?: string[];
+  image: string;
   createdAt: string;
-  updatedAt: string;
-  pengelola?: {
-    id: number;
-    name: string;
-    email?: string;
-  } | null;
-  updatedBy?: {
-    id: number;
-    name: string;
-    email?: string;
-  } | null;
+  updatedAt?: string;
+  pengelolaId?: number;
+  updatedById?: number;
+  pengelola?: Pengelola;
+  updatedBy?: UpdatedBy;
+  category?: string;
 }
 
-export default function ArtikelPage() {
+export default function ArticlesPage() {
   const [articles, setArticles] = useState<Article[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [filteredArticles, setFilteredArticles] = useState<Article[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
-
-  // Update the fetchArticles function to handle the updated API response format
-  const fetchArticles = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
-      const response = await fetch(`${apiUrl}/api/artikel`, {
-        cache: "no-store",
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch articles: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-
-      if (!result.data || !Array.isArray(result.data)) {
-        throw new Error("Received invalid data format from API");
-      }
-
-      // Transform API data to match our component's expected format
-      const transformedArticles = result.data.map((article: any) => ({
-        id: article.id || 0,
-        title: article.title || "",
-        slug: article.slug || `artikel-${article.id}`,
-        content: article.content || "",
-        summary:
-          article.summary ||
-          (article.content ? article.content.substring(0, 150) + "..." : ""),
-        image:
-          article.image ||
-          article.images?.[0] ||
-          "/placeholder.svg?height=400&width=600",
-        images: article.images || ["/placeholder.svg?height=400&width=600"],
-        category: article.category || "Umum",
-        tags: article.tags || [],
-        createdAt: article.createdAt || new Date().toISOString(),
-        updatedAt: article.updatedAt || new Date().toISOString(),
-        pengelola: article.pengelola,
-        updatedBy: article.updatedBy,
-      }));
-
-      setArticles(transformedArticles);
-      setError(null);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Unknown error";
-      console.error("Error fetching articles:", err);
-      setError(`Failed to load articles: ${errorMessage}`);
-      setArticles([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
+    const fetchArticles = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const response = await fetch("/api/artikel", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch articles");
+        }
+
+        const result = await response.json();
+
+        if (!result.data) {
+          throw new Error("No articles found");
+        }
+
+        setArticles(result.data);
+        setFilteredArticles(result.data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "An error occurred");
+        setArticles([]);
+        setFilteredArticles([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchArticles();
-  }, [fetchArticles]);
+  }, []);
 
-  // Filter articles based on search term
-  const filteredArticles = articles.filter((article) => {
-    const title = article.title || "";
-    const content = article.content || "";
-    const summary = article.summary || "";
-
-    const searchTermLower = searchTerm.toLowerCase();
-
-    return (
-      searchTerm === "" ||
-      title.toLowerCase().includes(searchTermLower) ||
-      content.toLowerCase().includes(searchTermLower) ||
-      summary.toLowerCase().includes(searchTermLower)
-    );
-  });
-
-  // Format date for display
-  const formatDate = (dateString: string) => {
+  // Get excerpt from content
+  const getExcerpt = (content: string, maxLength = 150) => {
     try {
-      return format(parseISO(dateString), "d MMMM yyyy", { locale: id });
-    } catch (err) {
-      return `Tanggal tidak valid ${err}`;
+      // Try to parse JSON content
+      const parsed = JSON.parse(content);
+      if (typeof parsed === "object" && parsed.blocks) {
+        const text = parsed.blocks.map((block: any) => block.text).join(" ");
+        return text.length > maxLength
+          ? text.substring(0, maxLength) + "..."
+          : text;
+      }
+    } catch (e) {
+      // Not JSON, use as is
     }
+
+    // Plain text handling
+    return content.length > maxLength
+      ? content.substring(0, maxLength) + "..."
+      : content;
   };
 
-  // Calculate read time
-  const calculateReadTime = (content: string): string => {
-    const wordsPerMinute = 200;
-    const wordCount = content.split(/\s+/).length;
-    const readTime = Math.ceil(wordCount / wordsPerMinute);
-    return `${readTime} menit`;
-  };
+  // Handle search functionality
+  useEffect(() => {
+    if (searchQuery.trim() === "") {
+      setFilteredArticles(articles);
+      return;
+    }
 
-  // Get a featured article (first article or null if none)
-  const featuredArticle =
-    filteredArticles.length > 0 ? filteredArticles[0] : null;
+    const query = searchQuery.toLowerCase();
+    const filtered = articles.filter(
+      (article) =>
+        article.title.toLowerCase().includes(query) ||
+        (article.content && article.content.toLowerCase().includes(query))
+    );
 
-  // Get remaining articles (skip the featured one)
-  const remainingArticles =
-    filteredArticles.length > 0 ? filteredArticles.slice(1) : [];
+    setFilteredArticles(filtered);
+  }, [searchQuery, articles]);
 
-  // Handle search form submission
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // The search is already reactive with the input change, but this prevents form submission
-  };
-
-  // Clear search
-  const clearSearch = () => {
-    setSearchTerm("");
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
   };
 
   return (
-    <div className="container px-4 py-8 mx-auto space-y-8">
-      <header className="space-y-4 text-center">
-        <h1 className="text-4xl font-bold">Artikel dan Berita</h1>
-        <p className="max-w-3xl mx-auto text-xl text-muted-foreground">
-          Baca artikel dan berita terbaru tentang Geopark Merangin
-        </p>
-      </header>
+    <div className="min-h-screen pb-12">
+      <div className="container px-4 py-8 mx-auto">
+        {/* Search and Filter */}
+        <div className="relative max-w-md mx-auto mb-8">
+          <div className="relative">
+            <Search className="absolute w-4 h-4 transform -translate-y-1/2 left-3 top-1/2 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Cari artikel..."
+              value={searchQuery}
+              onChange={handleSearch}
+              className="w-full pl-10"
+            />
+          </div>
+        </div>
 
-      <section className="space-y-6">
-        <div className="text-center">
-          <form
-            onSubmit={handleSearchSubmit}
-            className="flex justify-center">
-            <div className="relative flex items-center w-full max-w-md">
-              <div className="relative flex-1">
-                <Search className="absolute w-5 h-5 -translate-y-1/2 left-3 top-1/2 text-muted-foreground" />
-                <Input
-                  type="text"
-                  placeholder="Cari artikel..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="h-12 pl-10 pr-10 border-r-0 rounded-l-full focus-visible:ring-primary"
-                />
-                {searchTerm && (
-                  <button
-                    type="button"
-                    onClick={clearSearch}
-                    className="absolute -translate-y-1/2 right-3 top-1/2 text-muted-foreground hover:text-foreground">
-                    <X className="w-4 h-4" />
-                    <span className="sr-only">Clear search</span>
-                  </button>
-                )}
+        {/* Error */}
+        {error && (
+          <Alert
+            variant="destructive"
+            className="mb-6">
+            <AlertCircle className="w-4 h-4" />
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        {/* Articles Grid */}
+        {loading ? (
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {[...Array(6)].map((_, index) => (
+              <div
+                key={index}
+                className="overflow-hidden bg-white shadow-md rounded-xl">
+                <Skeleton className="w-full h-60" />
+                <div className="p-5">
+                  <Skeleton className="w-24 h-4 mb-2" />
+                  <Skeleton className="w-full h-6 mb-2" />
+                  <Skeleton className="w-full h-4 mb-2" />
+                  <Skeleton className="w-3/4 h-4 mb-4" />
+                  <div className="flex items-center justify-between">
+                    <Skeleton className="w-20 h-4" />
+                    <Skeleton className="w-24 h-4" />
+                  </div>
+                </div>
               </div>
-              <Button
-                type="submit"
-                className="h-12 px-6 rounded-r-full bg-primary hover:bg-primary/90">
-                <Search className="w-5 h-5 mr-2" />
-                <span>Cari</span>
-              </Button>
-            </div>
-          </form>
-        </div>
-      </section>
-
-      {isLoading && (
-        <div
-          className="py-12 text-center"
-          aria-live="polite">
-          <div className="w-10 h-10 mx-auto mb-4 border-2 rounded-full border-primary border-t-transparent animate-spin" />
-          <p className="text-muted-foreground">Memuat artikel...</p>
-        </div>
-      )}
-
-      {error && (
-        <div
-          className="py-12 text-center"
-          aria-live="polite">
-          <p className="mb-4 text-destructive">{error}</p>
-          <Button
-            onClick={fetchArticles}
-            className="mx-auto">
-            Coba Lagi
-          </Button>
-        </div>
-      )}
-
-      {!isLoading && !error && filteredArticles.length === 0 && (
-        <div
-          className="py-12 text-center"
-          aria-live="polite">
-          <p className="mb-2 text-muted-foreground">
-            Tidak ada artikel yang ditemukan
-          </p>
-          {searchTerm && (
-            <Button
-              variant="outline"
-              onClick={() => {
-                setSearchTerm("");
-              }}
-              className="mx-auto">
-              Reset Pencarian
-            </Button>
-          )}
-        </div>
-      )}
-
-      {!isLoading && !error && filteredArticles.length > 0 && (
-        <>
-          {/* Featured Article */}
-          {featuredArticle && (
-            <div className="mb-12">
-              <Card className="overflow-hidden transition-all duration-300 border-0 shadow-md hover:shadow-xl">
-                <div className="relative aspect-[21/9] w-full">
-                  <Image
-                    src={
-                      featuredArticle.image ||
-                      "/placeholder.svg?height=600&width=1200"
-                    }
-                    alt={featuredArticle.title}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 768px) 100vw, 1200px"
-                    priority
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
-
-                  <div className="absolute z-10 flex gap-2 top-4 left-4">
-                    <Badge className="bg-primary hover:bg-primary/90">
-                      {featuredArticle.category}
-                    </Badge>
-                  </div>
-                </div>
-
-                <CardContent className="p-6">
-                  <h2 className="mb-2 text-2xl font-bold md:text-3xl">
-                    {featuredArticle.title}
-                  </h2>
-
-                  <div className="flex flex-wrap items-center gap-4 mb-4">
-                    <div className="flex items-center gap-1 text-muted-foreground">
-                      <Calendar className="w-4 h-4" />
-                      <span className="text-sm">
-                        {formatDate(featuredArticle.createdAt)}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1 text-muted-foreground">
-                      <User className="w-4 h-4" />
-                      <span className="text-sm">
-                        {featuredArticle.pengelola?.name || "Admin"}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1 text-muted-foreground">
-                      <Clock className="w-4 h-4" />
-                      <span className="text-sm">
-                        {calculateReadTime(featuredArticle.content)}
-                      </span>
-                    </div>
-                  </div>
-
-                  <p className="mb-6 text-muted-foreground line-clamp-3">
-                    {featuredArticle.summary}
-                  </p>
-                </CardContent>
-
-                <CardFooter className="flex justify-center px-6 pt-0 pb-6">
-                  <Button
-                    asChild
-                    className="w-full sm:w-auto">
-                    <Link href={`/artikel/${featuredArticle.id}`}>
-                      Baca Artikel
-                    </Link>
-                  </Button>
-                </CardFooter>
-              </Card>
-            </div>
-          )}
-
-          {/* Remaining Articles - Grid View */}
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
-            {remainingArticles.map((article) => (
-              <Card
-                key={article.id}
-                className="overflow-hidden transition-all duration-300">
-                <div className="relative overflow-hidden h-60">
-                  <Image
-                    src={
-                      article.image || "/placeholder.svg?height=400&width=600"
-                    }
-                    alt={article.title}
-                    fill
-                    className="object-cover"
-                  />
-                  <Badge className="absolute z-10 top-3 right-3 bg-primary/90 hover:bg-primary">
-                    {article.category}
-                  </Badge>
-                </div>
-                <CardContent className="pt-6">
-                  <div className="flex items-start justify-between mb-2">
-                    <h2 className="text-xl font-bold">{article.title}</h2>
-                  </div>
-                  <div className="flex items-center mb-3 text-muted-foreground">
-                    <Calendar className="w-4 h-4 mr-1" />
-                    <span className="text-sm">
-                      {formatDate(article.createdAt)}
-                    </span>
-                  </div>
-                  <p className="mb-4 text-sm text-muted-foreground line-clamp-2">
-                    {article.summary}
-                  </p>
-                  <div className="flex items-center gap-2 text-sm">
-                    <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10">
-                      <User className="w-3.5 h-3.5 text-primary" />
-                    </div>
-                    <span className="text-muted-foreground">
-                      {article.pengelola?.name || "Admin"}
-                    </span>
-                    <span className="mx-2">•</span>
-                    <div className="flex items-center gap-1">
-                      <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-                      <span className="text-muted-foreground">
-                        {calculateReadTime(article.content)}
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
-                <CardFooter className="pt-0">
-                  <Button
-                    asChild
-                    className="w-full">
-                    <Link href={`/artikel/${article.id}`}>Baca Artikel</Link>
-                  </Button>
-                </CardFooter>
-              </Card>
             ))}
           </div>
-        </>
-      )}
+        ) : (
+          <>
+            {filteredArticles.length > 0 ? (
+              <div>
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {filteredArticles.map((article) => (
+                    <Link
+                      key={article.id}
+                      href={`/artikel/${article.id}`}
+                      className="overflow-hidden transition-transform bg-white rounded-lg shadow-sm hover:shadow-md hover:-translate-y-1">
+                      <div className="relative w-full aspect-[16/9]">
+                        <Image
+                          src={
+                            article.image ||
+                            "/placeholder.svg?height=300&width=500" ||
+                            "/placeholder.svg"
+                          }
+                          alt={article.title}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                      <div className="p-4">
+                        {article.category && (
+                          <Badge
+                            variant="outline"
+                            className="mb-2">
+                            {article.category}
+                          </Badge>
+                        )}
+                        <h2 className="mb-2 text-xl font-medium line-clamp-2">
+                          {article.title}
+                        </h2>
+                        <p className="mb-4 text-sm text-muted-foreground line-clamp-3">
+                          {getExcerpt(article.content)}
+                        </p>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                            <Calendar size={14} />
+                            <span>
+                              {new Date(article.createdAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="gap-1 p-0 hover:bg-transparent">
+                            <span className="text-blue-600">Read more</span>
+                            <ArrowRight
+                              size={14}
+                              className="text-blue-600"
+                            />
+                          </Button>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="py-12 text-center">
+                <h3 className="mb-2 text-xl font-medium">No articles found</h3>
+                <p className="mb-6 text-muted-foreground">
+                  {searchQuery.trim() !== ""
+                    ? "No articles match your search criteria."
+                    : "There are no articles available at the moment."}
+                </p>
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
