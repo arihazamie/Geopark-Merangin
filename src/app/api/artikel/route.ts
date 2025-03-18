@@ -69,7 +69,9 @@ export async function GET(request: NextRequest) {
 }
 
 const imageHandler = createImageHandler({
-  uploadDir: "/artikel",
+  uploadDir: "artikel", // Removed leading slash to work better with Vercel Blob
+  allowedTypes: /^image\/(jpeg|jpg|png)$/, // Fixed regex to match content-type format
+  maxFileSize: 3 * 1024 * 1024, // 2MB
   prefix: "artikel",
 });
 

@@ -5,8 +5,10 @@ const prisma = prismaEdge;
 import { createImageHandler } from "@/lib/imageHandler";
 
 const imageHandler = createImageHandler({
-  uploadDir: "/profile",
-  prefix: "/profile",
+  uploadDir: "profile", // Removed leading slash to work better with Vercel Blob
+  allowedTypes: /^image\/(jpeg|jpg|png)$/, // Fixed regex to match content-type format
+  maxFileSize: 3 * 1024 * 1024, // 2MB
+  prefix: "profile",
 });
 
 export async function POST(request: Request) {

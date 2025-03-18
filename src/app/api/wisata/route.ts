@@ -116,9 +116,9 @@ export async function GET(request: Request) {
 }
 
 const imageHandler = createImageHandler({
-  uploadDir: "/wisata",
-  allowedTypes: /jpeg|jpg|png/,
-  maxFileSize: 5 * 1024 * 1024, // 5MB
+  uploadDir: "wisata", // Removed leading slash to work better with Vercel Blob
+  allowedTypes: /^image\/(jpeg|jpg|png)$/, // Fixed regex to match content-type format
+  maxFileSize: 3 * 1024 * 1024, // 2MB
   prefix: "wisata",
 });
 
