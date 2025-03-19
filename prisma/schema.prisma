@@ -20,7 +20,7 @@ model Admin {
   name             String    // Nama admin
   notelp           String    // Nomor telepon admin
   email            String    @unique // Email admin (unik)
-  image            String    // URL gambar atau thumbnail admin
+  image            String    // URL gambar atau thumbnail admin    // URL gambar admin
   role             Role      @default(ADMIN) // Peran admin, default: ADMIN
   password         String    // Kata sandi admin (harus di-hash di aplikasi)
   createdAt        DateTime  @default(now()) // Tanggal dan waktu pembuatan akun admin

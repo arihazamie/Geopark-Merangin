@@ -665,45 +665,48 @@ export default function ArticleDetailPage({
               <TabsContent
                 value="new"
                 className="mt-0">
-                <div className="p-6 bg-white shadow-sm rounded-xl">
-                  <form onSubmit={handleSubmitReview}>
-                    <div className="mb-6">
-                      <Label
-                        htmlFor="rating"
-                        className="block mb-3">
-                        Rating
-                      </Label>
-                      <div className="flex items-center">
+                {currentUserId ? (
+                  <div className="p-6 bg-white shadow-sm rounded-xl">
+                    <form onSubmit={handleSubmitReview}>
+                      <div className="mb-4">
+                        <Label
+                          htmlFor="rating"
+                          className="block mb-2">
+                          Rating
+                        </Label>
                         <StarRating
                           rating={reviewRating}
                           onRatingChange={setReviewRating}
                           size={24}
                         />
-                        <span className="ml-2 text-muted-foreground">
-                          {reviewRating}{" "}
-                          {reviewRating === 1 ? "bintang" : "bintang"}
-                        </span>
                       </div>
-                    </div>
-
-                    <div className="mb-6">
-                      <Label
-                        htmlFor="comment"
-                        className="block mb-2">
-                        Komentar
-                      </Label>
-                      <Textarea
-                        id="comment"
-                        placeholder="Bagikan pendapat Anda tentang artikel ini..."
-                        className="min-h-[120px]"
-                        value={reviewComment}
-                        onChange={(e) => setReviewComment(e.target.value)}
-                      />
-                    </div>
-
-                    <Button type="submit">Kirim Ulasan</Button>
-                  </form>
-                </div>
+                      <div className="mb-4">
+                        <Label
+                          htmlFor="comment"
+                          className="block mb-2">
+                          Komentar
+                        </Label>
+                        <Textarea
+                          id="comment"
+                          value={reviewComment}
+                          onChange={(e) => setReviewComment(e.target.value)}
+                          placeholder="Tulis ulasan Anda di sini..."
+                          className="min-h-[100px]"
+                        />
+                      </div>
+                      <Button type="submit">Kirim Ulasan</Button>
+                    </form>
+                  </div>
+                ) : (
+                  <div className="p-6 text-center bg-white shadow-sm rounded-xl">
+                    <p className="mb-4 text-muted-foreground">
+                      Silakan login untuk memberikan ulasan
+                    </p>
+                    <Button asChild>
+                      <Link href="/api/auth/signin">Login</Link>
+                    </Button>
+                  </div>
+                )}
               </TabsContent>
             </Tabs>
           </div>

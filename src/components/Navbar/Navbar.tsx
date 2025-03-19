@@ -294,7 +294,9 @@ export default function Navbar() {
               </Link>
             </Button>
           )}
-          <DarkModeButton />
+          <div className="mr-2.5 md:mr-0">
+            <DarkModeButton />
+          </div>
         </div>
 
         {/* MOBILE NAV */}
@@ -303,3 +305,16 @@ export default function Navbar() {
     </div>
   );
 }
+
+// No changes needed to the Navbar component itself as it already correctly extracts the user's role from the session.
+// The ProfileDialog component we modified earlier will use the role information from the session to determine the correct API endpoint.
+// The Navbar component already passes the ProfileDialog component what it needs through the session context.
+
+// However, we should add a comment to document this behavior for future reference:
+
+// In the ProfileDialog component (line 367-377):
+// The ProfileDialog component receives the user session which includes the role.
+// It will use this role to determine the appropriate API endpoint:
+// - PENGGUNA: /api/pengguna/[id]
+// - PENGELOLA: /api/pengelola/[id]
+// - ADMIN: /api/admin/[id]

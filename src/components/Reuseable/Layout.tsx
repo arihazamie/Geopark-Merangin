@@ -1,7 +1,7 @@
 "use client";
 import "../../app/globals.css";
 import { usePathname } from "next/navigation";
-import Footer from "./footer";
+import Footer from "./Footer";
 import Navbar from "../Navbar/Navbar";
 import { GlobalToastProvider } from "../ui/global-toast-provider";
 

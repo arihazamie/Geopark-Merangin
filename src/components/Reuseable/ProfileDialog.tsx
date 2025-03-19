@@ -1,20 +1,26 @@
 "use client";
 
+import type React from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { LogOut, Mail, Phone, Shield } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { signOut, useSession } from "next-auth/react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { LogOut, Settings, RefreshCw } from "lucide-react";
+import { ProfileUpdateForm } from "./ProfileUpdateForm";
+import { toast } from "sonner";
 
 interface ProfileDialogProps {
-  trigger?: React.ReactNode;
+  trigger: React.ReactNode;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
 }
@@ -24,109 +30,198 @@ export function ProfileDialog({
   open,
   onOpenChange,
 }: ProfileDialogProps) {
-  const { data: session } = useSession();
+  const { data: session, update } = useSession();
+  const [activeTab, setActiveTab] = useState("profile");
+  const [isEditing, setIsEditing] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [userData, setUserData] = useState<any>(null);
 
-  if (!session?.user) {
-    return null;
-  }
+  // Use a ref to track if we've already fetched data
+  const hasInitiallyFetched = useRef(false);
+  // Use a ref to track manual refresh requests
+  const manualRefreshRequested = useRef(false);
 
-  const user = session.user;
+  // Fetch user data from API
+  const fetchUserData = useCallback(async () => {
+    if (!session?.user || !(session.user as any)?.id) return;
 
-  const getRoleBadgeColor = (role?: string) => {
-    switch (role) {
-      case "ADMIN":
-        return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300";
-      case "PENGELOLA":
-        return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300";
-      default:
-        return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300";
+    setIsRefreshing(true);
+    try {
+      const userId = (session.user as any).id;
+      const userRole = (session.user as any).role || "PENGGUNA";
+
+      // Determine API endpoint based on user role
+      let endpoint = "/api/pengguna";
+      if (userRole === "PENGELOLA") {
+        endpoint = "/api/pengelola";
+      } else if (userRole === "ADMIN") {
+        endpoint = "/api/admin";
+      }
+
+      const response = await fetch(`${endpoint}/${userId}`);
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch user data");
+      }
+
+      const { data } = await response.json();
+      setUserData(data);
+
+      // Only update session on manual refresh or initial fetch
+      if (manualRefreshRequested.current) {
+        await update({
+          ...session,
+          user: {
+            ...session.user,
+            ...data,
+          },
+        });
+        manualRefreshRequested.current = false;
+      }
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+      toast.error("Gagal mengambil data pengguna");
+    } finally {
+      setIsRefreshing(false);
     }
-  };
+  }, [session, update]);
 
-  const handleLogout = () => {
+  // Fetch user data when dialog opens for the first time
+  useEffect(() => {
+    if (open && !hasInitiallyFetched.current && session?.user) {
+      hasInitiallyFetched.current = true;
+      fetchUserData();
+    }
+
+    // Reset the flag when dialog closes
+    if (!open) {
+      hasInitiallyFetched.current = false;
+    }
+  }, [open, session?.user, fetchUserData]);
+
+  const handleSignOut = () => {
     signOut({ callbackUrl: "/auth/login" });
   };
+
+  const handleEditProfile = () => {
+    setIsEditing(true);
+    setActiveTab("edit");
+  };
+
+  const handleUpdateSuccess = () => {
+    setIsEditing(false);
+    setActiveTab("profile");
+    // Refresh user data after update
+    manualRefreshRequested.current = true;
+    fetchUserData();
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    setActiveTab("profile");
+  };
+
+  const handleRefresh = () => {
+    manualRefreshRequested.current = true;
+    fetchUserData();
+  };
+
+  // Use userData if available, otherwise fall back to session data
+  const displayData = userData || session?.user;
 
   return (
     <Dialog
       open={open}
       onOpenChange={onOpenChange}>
-      {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-      <DialogContent className="sm:max-w-[400px]">
+      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Profil Pengguna</DialogTitle>
+          <DialogDescription>
+            Lihat dan kelola informasi profil Anda
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col items-center py-4">
-          <Avatar className="w-24 h-24 mb-4">
-            <AvatarImage
-              src={user.image || ""}
-              alt={user.name || ""}
+        <Tabs
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="profile">Profil</TabsTrigger>
+            <TabsTrigger value="edit">Edit Profil</TabsTrigger>
+          </TabsList>
+
+          <TabsContent
+            value="profile"
+            className="py-4 space-y-4">
+            <div className="flex flex-col items-center gap-4">
+              <div className="relative">
+                <Avatar className="w-24 h-24">
+                  <AvatarImage
+                    src={
+                      displayData?.image ||
+                      "/placeholder.svg?height=100&width=100"
+                    }
+                    alt={displayData?.name || "User"}
+                  />
+                  <AvatarFallback>
+                    {displayData?.name?.charAt(0) || "U"}
+                  </AvatarFallback>
+                </Avatar>
+                <Button
+                  size="icon"
+                  variant="outline"
+                  className="absolute w-8 h-8 rounded-full -bottom-2 -right-2"
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}>
+                  <RefreshCw
+                    className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
+                  />
+                </Button>
+              </div>
+
+              <div className="text-center">
+                <h3 className="text-xl font-semibold">{displayData?.name}</h3>
+                <p className="text-sm text-muted-foreground">
+                  {displayData?.email}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {displayData?.notelp || "No phone number"}
+                </p>
+                <div className="inline-block px-2 py-1 mt-1 text-xs font-medium rounded-full bg-primary/10 text-primary">
+                  {displayData?.role || "PENGGUNA"}
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter className="flex flex-col gap-2 sm:flex-row">
+              <Button
+                variant="outline"
+                className="w-full sm:w-auto"
+                onClick={handleEditProfile}>
+                <Settings className="w-4 h-4 mr-2" />
+                Edit Profil
+              </Button>
+              <Button
+                variant="destructive"
+                className="w-full sm:w-auto"
+                onClick={handleSignOut}>
+                <LogOut className="w-4 h-4 mr-2" />
+                Keluar
+              </Button>
+            </DialogFooter>
+          </TabsContent>
+
+          <TabsContent
+            value="edit"
+            className="py-4">
+            <ProfileUpdateForm
+              onSuccess={handleUpdateSuccess}
+              onCancel={handleCancel}
+              initialData={userData}
             />
-            <AvatarFallback>{user.name?.charAt(0) || "U"}</AvatarFallback>
-          </Avatar>
-
-          <h2 className="text-xl font-semibold">{user.name}</h2>
-
-          {user.role && (
-            <div
-              className={`px-3 py-1 rounded-full text-xs font-medium mt-2 ${getRoleBadgeColor(
-                user.role
-              )}`}>
-              {user.role}
-            </div>
-          )}
-        </div>
-
-        <Separator />
-
-        <div className="py-4 space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center flex-shrink-0 w-10 h-10 rounded-full bg-primary/10">
-              <Mail className="w-5 h-5 text-primary" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Email</p>
-              <p className="font-medium">{user.email}</p>
-            </div>
-          </div>
-
-          {user.notelp && (
-            <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center flex-shrink-0 w-10 h-10 rounded-full bg-primary/10">
-                <Phone className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Nomor Telepon</p>
-                <p className="font-medium">{user.notelp}</p>
-              </div>
-            </div>
-          )}
-
-          {user.role && (
-            <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center flex-shrink-0 w-10 h-10 rounded-full bg-primary/10">
-                <Shield className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Peran</p>
-                <p className="font-medium">{user.role}</p>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <Separator />
-
-        <div className="">
-          <Button
-            variant="destructive"
-            onClick={handleLogout}
-            className="w-full">
-            <LogOut className="w-4 h-4 mr-2" />
-            Keluar
-          </Button>
-        </div>
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );

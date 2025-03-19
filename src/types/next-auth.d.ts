@@ -28,6 +28,6 @@ declare module "next-auth/jwt" {
     id: string;
     notelp?: string | null; // Opsional, sesuai dengan Prisma schema
     role: "ADMIN" | "PENGELOLA" | "PENGGUNA"; // Enum untuk tipe aman
-    picture?: string | null; // Sesuai dengan token.picture di authOptions
+    image?: string | null; // Sesuai dengan token.picture di authOptions
   }
 }
