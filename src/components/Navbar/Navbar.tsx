@@ -2,7 +2,7 @@
 
 import type React from "react";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Home, MapPin, Calendar, FileText, Menu, LogIn } from "lucide-react";
@@ -115,7 +115,13 @@ function NavbarItem({ isAdmin, isPengelola }: NavbarItemProps) {
   );
 }
 
-function MobileNav({ isLoggedIn }: { isLoggedIn: boolean }) {
+function MobileNav({
+  isLoggedIn,
+  session,
+}: {
+  isLoggedIn: boolean;
+  session: any;
+}) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
@@ -171,6 +177,28 @@ function MobileNav({ isLoggedIn }: { isLoggedIn: boolean }) {
               );
             })}
           </div>
+          {/* Dashboard links for admin and pengelola */}
+          {(session?.user?.role === "ADMIN" ||
+            session?.user?.role === "PENGELOLA") && (
+            <Link
+              href={`/dashboard/${
+                session?.user?.role === "ADMIN" ? "admin" : "pengelola"
+              }`}
+              onClick={() => setOpen(false)}
+              className={cn(
+                "flex items-center gap-3 py-3 px-4 transition-all rounded-lg",
+                pathname.startsWith(
+                  `/dashboard/${
+                    session?.user?.role === "ADMIN" ? "admin" : "pengelola"
+                  }`
+                )
+                  ? "bg-primary/10 text-primary font-medium"
+                  : "text-muted-foreground hover:bg-accent hover:text-foreground"
+              )}>
+              <FileText className="w-5 h-5" />
+              <span className="font-medium">Dashboard</span>
+            </Link>
+          )}
 
           {!isLoggedIn && (
             <div className="px-4 mt-4">
@@ -204,20 +232,65 @@ interface CurrentUser {
 export default function Navbar() {
   const [scrolled, setScrolled] = useState<boolean>(false);
   const [profileOpen, setProfileOpen] = useState<boolean>(false);
+  const [image, setImage] = useState<string>("");
+  const [imageLoading, setImageLoading] = useState<boolean>(true);
 
   const { data: session, status } = useSession();
   const isLoggedIn = status === "authenticated";
   const isAdmin = session?.user?.role === "ADMIN";
   const isPengelola = session?.user?.role === "PENGELOLA";
 
-  const currentUser: CurrentUser = {
-    name: session?.user?.name || session?.user?.email || "",
-    email: session?.user?.email || "",
-    notelp: session?.user?.notelp || "", // Type assertion if notelp isn't in default next-auth types
-    image: session?.user?.image || "/placeholder.svg?height=100&width=100",
-    role:
-      (session?.user?.role as "PENGGUNA" | "PENGELOLA" | "ADMIN") || "PENGGUNA",
-  };
+  useEffect(() => {
+    const fetchImage = async () => {
+      if (!session?.user?.id) return;
+
+      const userId = session.user.id;
+      const userRole = session?.user?.role;
+      let route = "pengguna"; // Default route
+
+      if (userRole === "ADMIN") {
+        route = "admin";
+      } else if (userRole === "PENGELOLA") {
+        route = "pengelola";
+      }
+
+      try {
+        const response = await fetch(`/api/${route}/${userId}`);
+
+        if (!response.ok) {
+          console.error("Failed to fetch user data");
+          return;
+        }
+
+        const { data } = await response.json();
+        if (data?.image) {
+          setImage(data.image);
+        }
+      } catch (error) {
+        console.error("Error fetching user image:", error);
+      }
+    };
+
+    if (isLoggedIn) {
+      fetchImage();
+    }
+  }, [session, isLoggedIn]);
+
+  const currentUser: CurrentUser = useMemo(
+    () => ({
+      name: session?.user?.name || session?.user?.email || "",
+      email: session?.user?.email || "",
+      notelp: session?.user?.notelp || "",
+      image:
+        image ||
+        session?.user?.image ||
+        "/placeholder.svg?height=100&width=100",
+      role:
+        (session?.user?.role as "PENGGUNA" | "PENGELOLA" | "ADMIN") ||
+        "PENGGUNA",
+    }),
+    [session, image]
+  );
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
@@ -271,9 +344,14 @@ export default function Navbar() {
                     <AvatarImage
                       src={currentUser.image}
                       alt={currentUser.name}
+                      onLoadingStatusChange={(status) =>
+                        setImageLoading(status === "loading")
+                      }
                     />
                     <AvatarFallback>
-                      {currentUser.name?.charAt(0) || "U"}
+                      {imageLoading
+                        ? "..."
+                        : currentUser.name?.charAt(0) || "U"}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
@@ -300,21 +378,11 @@ export default function Navbar() {
         </div>
 
         {/* MOBILE NAV */}
-        <MobileNav isLoggedIn={isLoggedIn} />
+        <MobileNav
+          isLoggedIn={isLoggedIn}
+          session={session}
+        />
       </div>
     </div>
   );
 }
-
-// No changes needed to the Navbar component itself as it already correctly extracts the user's role from the session.
-// The ProfileDialog component we modified earlier will use the role information from the session to determine the correct API endpoint.
-// The Navbar component already passes the ProfileDialog component what it needs through the session context.
-
-// However, we should add a comment to document this behavior for future reference:
-
-// In the ProfileDialog component (line 367-377):
-// The ProfileDialog component receives the user session which includes the role.
-// It will use this role to determine the appropriate API endpoint:
-// - PENGGUNA: /api/pengguna/[id]
-// - PENGELOLA: /api/pengelola/[id]
-// - ADMIN: /api/admin/[id]
