@@ -1,9 +1,9 @@
 "use client";
 import "../../app/globals.css";
 import { usePathname } from "next/navigation";
-import Footer from "@/components/Reuseable/Footer";
 import Navbar from "../Navbar/Navbar";
 import { GlobalToastProvider } from "../ui/global-toast-provider";
+import Footer from "./Footer";
 
 const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname();
