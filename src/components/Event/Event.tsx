@@ -219,18 +219,6 @@ export default function EventsPage() {
                           fill
                           className="object-cover transition-transform duration-300 group-hover:scale-105"
                         />
-                        <div className="absolute top-3 right-3">
-                          <Badge
-                            variant="secondary"
-                            className={`border-0 bg-white/90 dark:bg-gray-800/90 ${
-                              isUpcoming(event.startDate)
-                                ? "text-green-700 dark:text-green-400"
-                                : "text-orange-700 dark:text-orange-400"
-                            }`}>
-                            <Clock className="w-3 h-3 mr-1" />
-                            {isUpcoming(event.startDate) ? "Upcoming" : "Past"}
-                          </Badge>
-                        </div>
                         {event.category && (
                           <div className="absolute top-3 left-3">
                             <Badge className="text-white bg-purple-600/90">

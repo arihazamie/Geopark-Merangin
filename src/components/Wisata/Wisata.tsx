@@ -237,14 +237,6 @@ export default function HomePage() {
                               fill
                               className="object-cover transition-transform duration-300 group-hover:scale-105"
                             />
-                            <div className="absolute top-3 right-3">
-                              <Badge
-                                variant="secondary"
-                                className="text-green-700 border-0 bg-white/90 dark:bg-gray-800/90 dark:text-green-400">
-                                <CheckCircle2 className="w-3 h-3 mr-1" />
-                                Verified
-                              </Badge>
-                            </div>
                           </div>
 
                           <div className="p-6">

@@ -394,18 +394,6 @@ export default function EventDetailPage({
               <ChevronLeft size={20} />
               <span>Kembali ke Event</span>
             </Link>
-            <div className="flex items-center gap-3">
-              <Button
-                variant="outline"
-                size="icon">
-                <Share2 size={18} />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon">
-                <Heart size={18} />
-              </Button>
-            </div>
           </div>
         </div>
       </header>

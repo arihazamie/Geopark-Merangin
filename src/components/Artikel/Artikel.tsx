@@ -191,14 +191,6 @@ export default function ArticlesPage() {
                           fill
                           className="object-cover transition-transform duration-300 group-hover:scale-105"
                         />
-                        <div className="absolute top-3 right-3">
-                          <Badge
-                            variant="secondary"
-                            className="text-blue-700 border-0 bg-white/90 dark:bg-gray-800/90 dark:text-blue-400">
-                            <CheckCircle2 className="w-3 h-3 mr-1" />
-                            Published
-                          </Badge>
-                        </div>
                         {article.category && (
                           <div className="absolute top-3 left-3">
                             <Badge className="text-white bg-blue-600/90">
@@ -237,7 +229,7 @@ export default function ArticlesPage() {
                           )}
 
                           <span className="text-sm font-medium text-blue-600 dark:text-blue-400 group-hover:text-blue-700 dark:group-hover:text-blue-300">
-                            Read More →
+                            Baca →
                           </span>
                         </div>
                       </div>
