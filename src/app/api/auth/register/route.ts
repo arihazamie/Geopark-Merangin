@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import prismaEdge from "@/lib/prismaEdge";
-const prisma = prismaEdge;
 import { createImageHandler } from "@/lib/imageHandler";
+import { prisma } from "@/lib/prisma";
 
 const imageHandler = createImageHandler({
   uploadDir: "profile", // Removed leading slash to work better with Vercel Blob

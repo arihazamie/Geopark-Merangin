@@ -1,6 +1,5 @@
 // app/api/pengelola/route.ts
-import prismaEdge from "@/lib/prismaEdge";
-const prisma = prismaEdge;
+import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/authRoute";
 import bcrypt from "bcryptjs";

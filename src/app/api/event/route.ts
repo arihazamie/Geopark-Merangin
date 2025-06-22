@@ -1,9 +1,8 @@
 // app/api/event/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import prismaEdge from "@/lib/prismaEdge";
-const prisma = prismaEdge;
 import { getSession } from "@/lib/authRoute";
 import { createImageHandler } from "@/lib/imageHandler";
+import { prisma } from "@/lib/prisma";
 
 export async function GET(request: NextRequest) {
   try {

@@ -1,17 +1,14 @@
 "use client";
 
 import type React from "react";
-
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Calendar, Search, Filter, ArrowRight, MapPin } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Calendar, Search, MapPin, CheckCircle2, Clock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface Wisata {
   id: number;
@@ -142,52 +139,61 @@ export default function EventsPage() {
       : description;
   };
 
+  // Check if event is upcoming
+  const isUpcoming = (startDate: string) => {
+    return new Date(startDate) > new Date();
+  };
+
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
   };
 
   return (
-    <div className="min-h-screen pb-12">
-      <div className="container px-4 py-8 mx-auto">
-        {/* Search and Filter */}
-        <div className="relative max-w-md mx-auto mb-8">
-          <div className="relative">
-            <Search className="absolute w-4 h-4 transform -translate-y-1/2 left-3 top-1/2 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder="Search events..."
-              value={searchQuery}
-              onChange={handleSearch}
-              className="w-full pl-10"
-            />
+    <div className="min-h-screen transition-colors">
+      {/* Header Section */}
+      <div className="transition-colors">
+        <div className="container px-4 py-8 mx-auto">
+          {/* Search Bar */}
+          <div className="max-w-md mx-auto">
+            <div className="relative">
+              <Search className="absolute w-4 h-4 text-gray-400 transform -translate-y-1/2 left-3 top-1/2 dark:text-gray-500" />
+              <Input
+                type="text"
+                placeholder="Search events..."
+                value={searchQuery}
+                onChange={handleSearch}
+                className="h-12 pl-10 border-gray-200 dark:border-gray-600 focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
+              />
+            </div>
           </div>
         </div>
+      </div>
 
-        {/* Error */}
+      {/* Content Section */}
+      <div className="container px-4 py-8 mx-auto">
         {error && (
           <Alert
             variant="destructive"
-            className="mb-6">
-            <AlertCircle className="w-4 h-4" />
-            <AlertTitle>Error</AlertTitle>
+            className="max-w-2xl mx-auto mb-6">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
 
-        {/* Events Grid */}
         {loading ? (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
             {[...Array(6)].map((_, index) => (
               <div
                 key={index}
-                className="overflow-hidden bg-white rounded-lg shadow-sm">
-                <Skeleton className="w-full aspect-[16/9]" />
-                <div className="p-4">
-                  <Skeleton className="w-20 h-5 mb-2" />
+                className="overflow-hidden bg-white shadow-sm dark:bg-gray-800 rounded-2xl">
+                <Skeleton className="w-full h-48" />
+                <div className="p-6">
+                  <Skeleton className="w-20 h-4 mb-3" />
                   <Skeleton className="w-full h-6 mb-2" />
-                  <Skeleton className="w-full h-4 mb-2" />
-                  <Skeleton className="w-3/4 h-4 mb-4" />
-                  <Skeleton className="w-32 h-4" />
+                  <Skeleton className="w-full h-4 mb-4" />
+                  <div className="flex items-center justify-between">
+                    <Skeleton className="w-16 h-4" />
+                    <Skeleton className="w-12 h-4" />
+                  </div>
                 </div>
               </div>
             ))}
@@ -195,74 +201,104 @@ export default function EventsPage() {
         ) : (
           <>
             {filteredEvents.length > 0 ? (
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {filteredEvents.map((event) => (
                   <Link
                     key={event.id}
                     href={`/event/${event.id}`}
-                    className="overflow-hidden transition-transform bg-white rounded-lg shadow-sm hover:shadow-md hover:-translate-y-1">
-                    <div className="relative w-full aspect-[16/9]">
-                      <Image
-                        src={
-                          event.image || "/placeholder.svg?height=300&width=500"
-                        }
-                        alt={event.title}
-                        fill
-                        className="object-cover"
-                      />
-                      {event.category && (
-                        <Badge className="absolute text-white bg-blue-600 top-3 left-3">
-                          {event.category}
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="p-4">
-                      <h2 className="mb-2 text-xl font-medium line-clamp-2">
-                        {event.title}
-                      </h2>
-
-                      <div className="flex items-center gap-1 mb-2 text-sm text-muted-foreground">
-                        <Calendar size={14} />
-                        <span>
-                          {formatDateRange(event.startDate, event.endDate)}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-1 mb-3 text-sm text-muted-foreground">
-                        <MapPin size={14} />
-                        <span>{event.location}</span>
-                      </div>
-
-                      <p className="mb-4 text-sm text-muted-foreground line-clamp-3">
-                        {getExcerpt(event.description)}
-                      </p>
-
-                      <div className="flex items-center justify-between">
-                        {event.wisata && (
-                          <Badge variant="outline">{event.wisata.name}</Badge>
+                    className="block group">
+                    <div className="overflow-hidden transition-all duration-300 bg-white border border-gray-100 shadow-sm dark:bg-gray-800 rounded-2xl hover:shadow-md dark:hover:shadow-lg group-hover:-translate-y-1 dark:border-gray-700">
+                      <div className="relative h-48 overflow-hidden">
+                        <Image
+                          src={
+                            event.image ||
+                            "/placeholder.svg?height=200&width=300" ||
+                            "/placeholder.svg"
+                          }
+                          alt={event.title}
+                          fill
+                          className="object-cover transition-transform duration-300 group-hover:scale-105"
+                        />
+                        <div className="absolute top-3 right-3">
+                          <Badge
+                            variant="secondary"
+                            className={`border-0 bg-white/90 dark:bg-gray-800/90 ${
+                              isUpcoming(event.startDate)
+                                ? "text-green-700 dark:text-green-400"
+                                : "text-orange-700 dark:text-orange-400"
+                            }`}>
+                            <Clock className="w-3 h-3 mr-1" />
+                            {isUpcoming(event.startDate) ? "Upcoming" : "Past"}
+                          </Badge>
+                        </div>
+                        {event.category && (
+                          <div className="absolute top-3 left-3">
+                            <Badge className="text-white bg-purple-600/90">
+                              {event.category}
+                            </Badge>
+                          </div>
                         )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="gap-1 p-0 hover:bg-transparent">
-                          <span className="text-blue-600">View details</span>
-                          <ArrowRight
-                            size={14}
-                            className="text-blue-600"
-                          />
-                        </Button>
+                      </div>
+
+                      <div className="p-6">
+                        <div className="flex items-center mb-2 text-sm text-gray-500 dark:text-gray-400">
+                          <Calendar className="w-4 h-4 mr-1" />
+                          {formatDateRange(event.startDate, event.endDate)}
+                        </div>
+
+                        <h3 className="mb-2 text-lg font-semibold text-gray-900 transition-colors dark:text-white line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400">
+                          {event.title}
+                        </h3>
+
+                        <div className="flex items-center mb-3 text-sm text-gray-500 dark:text-gray-400">
+                          <MapPin className="w-4 h-4 mr-1" />
+                          {event.location}
+                        </div>
+
+                        <p className="mb-4 text-sm text-gray-600 dark:text-gray-300 line-clamp-2">
+                          {getExcerpt(event.description)}
+                        </p>
+
+                        <div className="flex items-center justify-between">
+                          {event.wisata ? (
+                            <div className="flex items-center">
+                              <CheckCircle2 className="w-4 h-4 mr-1 text-green-500" />
+                              <span className="text-sm text-gray-500 dark:text-gray-400">
+                                {event.wisata.name}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-sm text-gray-400 dark:text-gray-500">
+                              General Event
+                            </span>
+                          )}
+
+                          <span className="text-sm font-medium text-blue-600 dark:text-blue-400 group-hover:text-blue-700 dark:group-hover:text-blue-300">
+                            View Details →
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </Link>
                 ))}
               </div>
             ) : (
-              <div className="p-8 text-center bg-white rounded-lg">
-                <p className="mb-4 text-lg text-muted-foreground">
-                  {searchQuery.trim() !== ""
-                    ? "No events found matching your search."
-                    : "There are no verified tourist attractions available at the moment."}
-                </p>
+              <div className="py-16 text-center">
+                <div className="max-w-md mx-auto">
+                  <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full dark:bg-gray-700">
+                    <Search className="w-8 h-8 text-gray-400 dark:text-gray-500" />
+                  </div>
+                  <h3 className="mb-2 text-xl font-semibold text-gray-900 dark:text-white">
+                    {searchQuery.trim() !== ""
+                      ? "No results found"
+                      : "No events available"}
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-300">
+                    {searchQuery.trim() !== ""
+                      ? "Try adjusting your search terms or browse all events."
+                      : "Check back later for new events."}
+                  </p>
+                </div>
               </div>
             )}
           </>

@@ -51,8 +51,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LoadingCards } from "@/components/ui/loading-spinner";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { Progress } from "@/components/ui/progress";
-import { Switch } from "@/components/ui/switch";
 import Image from "next/image";
+import { EventPdfButton } from "../export/event/Button";
 
 interface Event {
   id: number;
@@ -517,7 +517,7 @@ export default function EventPage() {
           </p>
         </div>
         <div className="flex items-center gap-4">
-          <div className="relative">
+          <div className="relative flex gap-5">
             <Search className="absolute w-4 h-4 -translate-y-1/2 left-3 top-1/2 text-muted-foreground" />
             <Input
               type="search"
@@ -526,6 +526,7 @@ export default function EventPage() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
+            <EventPdfButton />
           </div>
           <Dialog
             open={openAddDialog}

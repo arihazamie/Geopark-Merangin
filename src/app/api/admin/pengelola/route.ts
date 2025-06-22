@@ -1,8 +1,7 @@
 // app/api/admin/pengelola/route.ts
-import prismaEdge from "@/lib/prismaEdge";
-const prisma = prismaEdge;
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/authRoute";
+import { prisma } from "@/lib/prisma";
 
 /**
  * Handler untuk memperbarui status verifikasi pengelola.
@@ -95,7 +94,7 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: message }, { status: 500 });
   } finally {
     // Putuskan koneksi Prisma dengan penanganan error
-    await prisma.$disconnect().catch((err) => {
+    await prisma.$disconnect().catch((err: Error) => {
       console.warn("Gagal memutuskan koneksi Prisma:", err);
     });
   }

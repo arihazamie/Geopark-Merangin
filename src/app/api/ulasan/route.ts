@@ -2,8 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod"; // Untuk validasi data
 import { getSession } from "@/lib/authRoute";
-import prismaEdge from "@/lib/prismaEdge";
-const prisma = prismaEdge;
+import { prisma } from "@/lib/prisma";
 
 // Schema validasi untuk membuat ulasan
 const createUlasanSchema = z.object({
@@ -67,6 +66,45 @@ export async function GET(request: NextRequest) {
   } catch (err) {
     return NextResponse.json(
       { error: "Terjadi kesalahan saat mengambil ulasan", err },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE: Menghapus ulasan
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+    if (!id) {
+      return NextResponse.json(
+        { error: "ID ulasan diperlukan" },
+        { status: 400 }
+      );
+    }
+
+    const ulasan = await prisma.ulasan.findUnique({
+      where: { id: Number(id) },
+    });
+
+    if (!ulasan) {
+      return NextResponse.json(
+        { error: "Ulasan tidak ditemukan" },
+        { status: 404 }
+      );
+    }
+
+    await prisma.ulasan.delete({
+      where: { id: Number(id) },
+    });
+
+    return NextResponse.json(
+      { message: "Ulasan berhasil dihapus" },
+      { status: 200 }
+    );
+  } catch (err) {
+    return NextResponse.json(
+      { error: "Terjadi kesalahan saat menghapus ulasan", err },
       { status: 500 }
     );
   }
@@ -172,45 +210,6 @@ export async function PUT(request: NextRequest) {
     }
     return NextResponse.json(
       { error: "Terjadi kesalahan saat mengupdate ulasan" },
-      { status: 500 }
-    );
-  }
-}
-
-// DELETE: Menghapus ulasan
-export async function DELETE(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get("id");
-    if (!id) {
-      return NextResponse.json(
-        { error: "ID ulasan diperlukan" },
-        { status: 400 }
-      );
-    }
-
-    const ulasan = await prisma.ulasan.findUnique({
-      where: { id: Number(id) },
-    });
-
-    if (!ulasan) {
-      return NextResponse.json(
-        { error: "Ulasan tidak ditemukan" },
-        { status: 404 }
-      );
-    }
-
-    await prisma.ulasan.delete({
-      where: { id: Number(id) },
-    });
-
-    return NextResponse.json(
-      { message: "Ulasan berhasil dihapus" },
-      { status: 200 }
-    );
-  } catch (err) {
-    return NextResponse.json(
-      { error: "Terjadi kesalahan saat menghapus ulasan", err },
       { status: 500 }
     );
   }

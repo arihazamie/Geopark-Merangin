@@ -1,8 +1,7 @@
 // app/api/admin/event/route.ts
-import prismaEdge from "@/lib/prismaEdge";
-const prisma = prismaEdge;
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/authRoute";
+import { prisma } from "@/lib/prisma";
 
 /**
  * Handler untuk memperbarui status verifikasi event.
@@ -112,7 +111,7 @@ export async function PUT(req: NextRequest) {
       error instanceof Error ? error.message : "Kesalahan Server Internal";
     return NextResponse.json({ error: message }, { status: 500 });
   } finally {
-    await prisma.$disconnect().catch((err) => {
+    await prisma.$disconnect().catch((err: Error) => {
       console.warn("Gagal memutuskan koneksi Prisma:", err);
     });
   }

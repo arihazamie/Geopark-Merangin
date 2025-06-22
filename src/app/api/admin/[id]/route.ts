@@ -3,8 +3,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/authRoute";
 import { createImageHandler } from "@/lib/imageHandler";
-import prismaEdge from "@/lib/prismaEdge";
-const prisma = prismaEdge;
+import { prisma } from "@/lib/prisma";
 
 // Create image handler instance
 const imageHandler = createImageHandler({

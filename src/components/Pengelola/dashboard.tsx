@@ -17,6 +17,7 @@ import { Switch } from "@/components/ui/switch";
 import WisataPage from "./components/pengelolaWisata";
 import ArtikelPage from "./components/pengelolaArtikel";
 import EventPage from "./components/pengelolaEvent";
+import UlasanWisataPage from "./components/ulasan/ulasan";
 
 export default function PengelolaDashboard() {
   const [activeTab, setActiveTab] = useState("wisata");
@@ -165,6 +166,16 @@ export default function PengelolaDashboard() {
                   <Calendar className="w-4 h-4" />
                   Event
                 </button>
+                <button
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2 text-left transition-all ${
+                    activeTab === "ulasan"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  }`}
+                  onClick={() => handleTabChange("ulasan")}>
+                  <Calendar className="w-4 h-4" />
+                  Ulasan
+                </button>
               </nav>
             </div>
             <div className="mt-auto"></div>
@@ -196,6 +207,8 @@ export default function PengelolaDashboard() {
               initial={false}>
               {activeTab === "wisata" ? (
                 <WisataPage key="wisata" />
+              ) : activeTab === "ulasan" ? (
+                <UlasanWisataPage key="ulasan" />
               ) : activeTab === "event" ? (
                 <EventPage key="event" />
               ) : (

@@ -65,14 +65,33 @@ export function LoginForm() {
         return;
       }
 
-      // Success
-      toast.success("Berhasil masuk", {
-        description: "Anda telah berhasil masuk ke akun Anda.",
-      });
+      if (result?.ok) {
+        // Success
+        toast.success("Berhasil masuk", {
+          description: "Anda telah berhasil masuk ke akun Anda.",
+        });
 
-      // Redirect based on user role (you can get this from the session)
-      router.push("/");
-      router.refresh();
+        // Fetch user data to determine redirect
+        try {
+          const response = await fetch("/api/auth/session");
+          const sessionData = await response.json();
+
+          if (sessionData?.user?.role === "ADMIN") {
+            router.push("/dashboard/admin");
+          } else if (sessionData?.user?.role === "PENGELOLA") {
+            router.push("/dashboard/pengelola");
+          } else {
+            router.push("/");
+          }
+
+          router.refresh();
+        } catch (sessionError) {
+          console.error("Error fetching session:", sessionError);
+          // Fallback redirect
+          router.push("/");
+          router.refresh();
+        }
+      }
     } catch (err) {
       const errorMessage = `Terjadi kesalahan: ${err}`;
       setError(errorMessage);

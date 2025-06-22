@@ -1,8 +1,7 @@
 // app/api/wisata/route.ts
 import { NextResponse } from "next/server";
 import { createImageHandler } from "../../../lib/imageHandler";
-import prismaEdge from "@/lib/prismaEdge";
-const prisma = prismaEdge;
+import { prisma } from "../../../lib/prisma";
 import { z } from "zod";
 
 // Nonaktifkan body parser bawaan agar kita bisa menggunakan request.formData()
@@ -109,9 +108,6 @@ export async function GET(request: Request) {
       { success: false, error: "Gagal mengambil data wisata" },
       { status: 500 }
     );
-  } finally {
-    // Ensure Prisma disconnects
-    await prisma.$disconnect();
   }
 }
 

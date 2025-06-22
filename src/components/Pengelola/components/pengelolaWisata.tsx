@@ -635,6 +635,8 @@ export default function WisataPage() {
                               <Image
                                 src={url || "/placeholder.svg"}
                                 alt={`Preview ${index + 1}`}
+                                width={150}
+                                height={150}
                                 className="object-cover w-full h-full"
                               />
                             </div>
@@ -968,7 +970,7 @@ export default function WisataPage() {
                               key={index}
                               className="w-12 h-12">
                               <AvatarImage
-                                src={image}
+                                src={image || "/placeholder.svg"}
                                 alt={`Wisata image ${index + 1}`}
                               />
                               <AvatarFallback>IMG</AvatarFallback>
@@ -1002,6 +1004,8 @@ export default function WisataPage() {
                             <Image
                               src={url || "/placeholder.svg"}
                               alt={`Preview ${index + 1}`}
+                              width={150}
+                              height={150}
                               className="object-cover w-full h-full"
                             />
                           </div>

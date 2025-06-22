@@ -530,6 +530,8 @@ export default function PengelolaEvent() {
                           <Image
                             src={previewImage || "/placeholder.svg"}
                             alt="Preview"
+                            width={400}
+                            height={225}
                             className="object-cover w-full h-full"
                           />
                         </div>
@@ -864,6 +866,8 @@ export default function PengelolaEvent() {
                         <Image
                           src={previewImage || "/placeholder.svg"}
                           alt="Preview"
+                          width={400}
+                          height={225}
                           className="object-cover w-full h-full"
                         />
                       </div>

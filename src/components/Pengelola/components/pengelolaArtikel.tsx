@@ -539,6 +539,8 @@ export default function PengelolaArtikel() {
                             <Image
                               src={previewImage || "/placeholder.svg"}
                               alt="Preview"
+                              width={400}
+                              height={225}
                               className="object-cover w-full h-full"
                             />
                           </div>
@@ -654,7 +656,7 @@ export default function PengelolaArtikel() {
                 <div className="flex items-start gap-4">
                   <Avatar className="flex-shrink-0 w-16 h-16 rounded-md">
                     <AvatarImage
-                      src={artikel.image}
+                      src={artikel.image || "/placeholder.svg"}
                       alt={artikel.title}
                       className="object-cover"
                     />
@@ -835,6 +837,8 @@ export default function PengelolaArtikel() {
                         <Image
                           src={previewImage || "/placeholder.svg"}
                           alt="Preview"
+                          width={400}
+                          height={225}
                           className="object-cover w-full h-full"
                         />
                       </div>

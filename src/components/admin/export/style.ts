@@ -1,209 +1,4 @@
-import { StyleSheet, Font } from "@react-pdf/renderer";
-
-// Register fonts with italic variants
-export const fonts = Font.register({
-  family: "Roboto",
-  fonts: [
-    {
-      src: "https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/roboto-light-webfont.ttf",
-      fontWeight: 300,
-      fontStyle: "normal",
-    },
-    {
-      src: "https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/roboto-lightitalic-webfont.ttf",
-      fontWeight: 300,
-      fontStyle: "italic",
-    },
-    {
-      src: "https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/roboto-regular-webfont.ttf",
-      fontWeight: 400,
-      fontStyle: "normal",
-    },
-    {
-      src: "https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/roboto-italic-webfont.ttf",
-      fontWeight: 400,
-      fontStyle: "italic",
-    },
-    {
-      src: "https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/roboto-medium-webfont.ttf",
-      fontWeight: 500,
-      fontStyle: "normal",
-    },
-    {
-      src: "https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/roboto-mediumitalic-webfont.ttf",
-      fontWeight: 500,
-      fontStyle: "italic",
-    },
-    {
-      src: "https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/roboto-bold-webfont.ttf",
-      fontWeight: 700,
-      fontStyle: "normal",
-    },
-    {
-      src: "https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/roboto-bolditalic-webfont.ttf",
-      fontWeight: 700,
-      fontStyle: "italic",
-    },
-  ],
-});
-
-export const styles = StyleSheet.create({
-  page: {
-    padding: 40,
-    fontFamily: "Roboto",
-    fontSize: 10,
-    lineHeight: 1.5,
-    backgroundColor: "#ffffff",
-  },
-  header: {
-    marginBottom: 10,
-    textAlign: "center",
-    borderBottom: "1px solid #000",
-    paddingBottom: 10,
-  },
-  headerContent: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 5,
-  },
-  logo: {
-    width: 50,
-    height: 50,
-    marginRight: 10,
-  },
-  titleContainer: {
-    flexDirection: "column",
-    alignItems: "center", // Center all text in the title container
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: "bold",
-    marginBottom: 4,
-    color: "#333333",
-    textAlign: "center",
-  },
-  subtitle: {
-    fontSize: 10,
-    marginBottom: 2,
-    color: "#555555",
-    textAlign: "center", // Center the subtitle text
-  },
-  dateContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 10,
-    marginBottom: 15,
-  },
-  date: {
-    fontSize: 10,
-    fontWeight: 500,
-    color: "#555555",
-  },
-  reportTitle: {
-    fontSize: 14,
-    fontWeight: "bold",
-    marginTop: 10,
-    marginBottom: 15,
-    textAlign: "center",
-    color: "#333333",
-    textDecoration: "underline",
-  },
-  table: {
-    display: "flex",
-    width: "auto",
-    borderStyle: "solid",
-    borderWidth: 1,
-    borderColor: "#666666",
-    marginBottom: 20,
-  },
-  tableRow: {
-    flexDirection: "row",
-    minHeight: 25,
-    alignItems: "center",
-  },
-  tableRowEven: {
-    flexDirection: "row",
-    minHeight: 25,
-    alignItems: "center",
-    backgroundColor: "#f9f9f9",
-  },
-  tableHeaderRow: {
-    flexDirection: "row",
-    minHeight: 30,
-    alignItems: "center",
-    backgroundColor: "#e6e6e6",
-    borderBottomWidth: 1,
-    borderBottomColor: "#666666",
-  },
-  tableColHeader: {
-    borderRightWidth: 1,
-    borderRightColor: "#666666",
-    padding: 6,
-    fontWeight: "bold",
-    fontSize: 10,
-    color: "#333333",
-  },
-  tableCol: {
-    borderRightWidth: 1,
-    borderRightColor: "#666666",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
-    padding: 6,
-    fontSize: 9,
-  },
-  noCol: {
-    width: "5%",
-    textAlign: "center",
-  },
-  nameCol: {
-    width: "25%",
-  },
-  addressCol: {
-    width: "35%",
-  },
-  typeCol: {
-    width: "15%",
-  },
-  verificationCol: {
-    width: "20%",
-    textAlign: "center",
-  },
-  footer: {
-    position: "absolute",
-    bottom: 30,
-    right: 40,
-    textAlign: "right",
-    fontSize: 9,
-    color: "#555555",
-  },
-  signature: {
-    marginTop: 60,
-    marginBottom: 10,
-  },
-  signatureName: {
-    fontWeight: "bold",
-  },
-  signatureTitle: {
-    fontSize: 8,
-  },
-  pageNumber: {
-    position: "absolute",
-    bottom: 30,
-    left: 40,
-    fontSize: 9,
-    color: "#555555",
-  },
-  verifiedBadge: {
-    color: "#2e7d32",
-    fontWeight: "bold",
-  },
-  unverifiedBadge: {
-    color: "#c62828",
-    fontWeight: "bold",
-  },
-});
-
+import { StyleSheet } from "@react-pdf/renderer";
 
 export const dayNames = [
   "Minggu",
@@ -214,6 +9,7 @@ export const dayNames = [
   "Jumat",
   "Sabtu",
 ];
+
 export const monthNames = [
   "Januari",
   "Februari",
@@ -228,3 +24,212 @@ export const monthNames = [
   "November",
   "Desember",
 ];
+
+export const styles = StyleSheet.create({
+  page: {
+    flexDirection: "column",
+    backgroundColor: "#FFFFFF",
+    padding: 40,
+    fontSize: 9,
+    fontFamily: "Helvetica",
+    lineHeight: 1.4,
+  },
+  header: {
+    marginBottom: 25,
+    borderBottom: 3,
+    borderBottomColor: "#2563eb",
+    paddingBottom: 15,
+    alignItems: "center",
+  },
+  headerContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logo: {
+    width: 60,
+    height: 60,
+    marginRight: 15,
+  },
+  titleContainer: {
+    flex: 1,
+    alignItems: "center",
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: "bold",
+    textAlign: "center",
+    marginBottom: 8,
+    color: "#1e40af",
+    letterSpacing: 0.5,
+  },
+  subtitle: {
+    fontSize: 10,
+    textAlign: "center",
+    marginBottom: 3,
+    color: "#374151",
+  },
+  reportTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    textAlign: "center",
+    marginBottom: 25,
+    textDecoration: "underline",
+    color: "#1e40af",
+    letterSpacing: 1,
+  },
+  table: {
+    display: "flex",
+    width: "auto",
+    borderStyle: "solid",
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    borderRadius: 4,
+    marginBottom: 25,
+    overflow: "hidden",
+  },
+  tableHeaderRow: {
+    flexDirection: "row",
+    backgroundColor: "#3b82f6",
+    borderBottomWidth: 2,
+    borderBottomColor: "#1e40af",
+  },
+  tableRow: {
+    flexDirection: "row",
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
+    minHeight: 35,
+  },
+  tableRowEven: {
+    flexDirection: "row",
+    backgroundColor: "#f8fafc",
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
+    minHeight: 35,
+  },
+  tableColHeader: {
+    borderRightWidth: 1,
+    borderRightColor: "#1e40af",
+    padding: 8,
+    fontWeight: "bold",
+    textAlign: "center",
+    color: "#ffffff",
+    fontSize: 9,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  tableCol: {
+    borderRightWidth: 1,
+    borderRightColor: "#e5e7eb",
+    padding: 6,
+    textAlign: "center",
+    fontSize: 8,
+    justifyContent: "center",
+    alignItems: "center",
+    flexWrap: "wrap",
+  },
+  noCol: {
+    width: "6%",
+    minWidth: 25,
+  },
+  nameCol: {
+    width: "22%",
+    textAlign: "left",
+    paddingLeft: 8,
+  },
+  addressCol: {
+    width: "15%",
+  },
+  typeCol: {
+    width: "13%",
+  },
+  dateCol: {
+    width: "17%",
+    fontSize: 7,
+  },
+  verificationCol: {
+    width: "10%",
+  },
+  summary: {
+    marginBottom: 25,
+    padding: 15,
+    backgroundColor: "#f1f5f9",
+    borderRadius: 8,
+    borderLeft: 4,
+    borderLeftColor: "#3b82f6",
+  },
+  summaryTitle: {
+    fontSize: 12,
+    fontWeight: "bold",
+    marginBottom: 8,
+    color: "#1e40af",
+  },
+  summaryText: {
+    fontSize: 10,
+    marginBottom: 4,
+    color: "#374151",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  summaryLabel: {
+    fontWeight: "normal",
+  },
+  summaryValue: {
+    fontWeight: "bold",
+    color: "#1e40af",
+  },
+  footer: {
+    marginTop: 40,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+  },
+  footerLeft: {
+    flex: 1,
+  },
+  footerRight: {
+    alignItems: "center",
+    flex: 1,
+  },
+  dateText: {
+    fontSize: 10,
+    marginBottom: 5,
+    color: "#374151",
+  },
+  signatureTitle: {
+    fontSize: 11,
+    fontWeight: "bold",
+    marginBottom: 40,
+    color: "#1e40af",
+  },
+  signature: {
+    alignItems: "center",
+  },
+  signatureName: {
+    fontWeight: "bold",
+    textDecoration: "underline",
+    fontSize: 11,
+    marginBottom: 3,
+  },
+  signatureNip: {
+    fontSize: 9,
+    color: "#6b7280",
+  },
+  pageNumber: {
+    position: "absolute",
+    fontSize: 9,
+    bottom: 20,
+    left: 0,
+    right: 0,
+    textAlign: "center",
+    color: "#6b7280",
+  },
+  statusVerified: {
+    color: "#059669",
+    fontWeight: "bold",
+  },
+  statusNotVerified: {
+    color: "#dc2626",
+    fontWeight: "bold",
+  },
+});

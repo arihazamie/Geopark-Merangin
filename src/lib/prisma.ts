@@ -1,6 +1,4 @@
-// prismaLocal.ts
-import { PrismaClient } from "@prisma/client";
+import prismaEdge from "./prismaEdge";
+import { prismaLocal } from "./prismaLocal";
 
-// Instance untuk lingkungan lokal tanpa ekstensi tambahan
-const prisma = new PrismaClient();
-export default prisma;
+export const prisma = prismaEdge;
