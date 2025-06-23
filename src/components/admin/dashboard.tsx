@@ -113,7 +113,7 @@ export default function Dashboard() {
             href="/"
             className="flex items-center gap-2 font-semibold">
             <Landmark className="w-6 h-6 text-primary" />
-            <span className="hidden md:inline">Pengelola Dashboard</span>
+            <span className="hidden md:inline">Admin Dashboard</span>
           </Link>
           <div className="flex items-center gap-4 ml-auto">
             <TooltipProvider>

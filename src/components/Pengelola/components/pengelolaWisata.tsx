@@ -910,16 +910,9 @@ export default function WisataPage() {
                       <SelectValue placeholder="Pilih tipe wisata" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="pantai">Pantai</SelectItem>
-                      <SelectItem value="gunung">Gunung</SelectItem>
-                      <SelectItem value="candi">Candi</SelectItem>
-                      <SelectItem value="taman">Taman</SelectItem>
-                      <SelectItem value="danau">Danau</SelectItem>
-                      <SelectItem value="air-terjun">Air Terjun</SelectItem>
-                      <SelectItem value="budaya">Budaya</SelectItem>
-                      <SelectItem value="sejarah">Sejarah</SelectItem>
-                      <SelectItem value="religi">Religi</SelectItem>
-                      <SelectItem value="kuliner">Kuliner</SelectItem>
+                      <SelectItem value="pantai">Geologi</SelectItem>
+                      <SelectItem value="pantai">Biologi</SelectItem>
+                      <SelectItem value="pantai">Budaya</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
