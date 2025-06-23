@@ -10,9 +10,6 @@ import {
   Calendar,
   Star,
   ChevronLeft,
-  Share2,
-  Heart,
-  CheckCircle,
   Map,
   AlertCircle,
   Edit,
@@ -521,13 +518,6 @@ export default function AttractionDetailPage({
                       {attraction.longitude ?? "N/A"}
                     </p>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1">
-                    <Map size={16} />
-                    <span>Dapatkan Arah</span>
-                  </Button>
                 </div>
                 <div className="h-[400px] w-full rounded-lg overflow-hidden -z-50">
                   {hasValidCoordinates ? (
