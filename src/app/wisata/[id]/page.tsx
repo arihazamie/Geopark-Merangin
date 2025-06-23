@@ -727,7 +727,7 @@ export default function AttractionDetailPage({
                           </Label>
                           <Textarea
                             id="comment"
-                            placeholder="Bagikan pendapat Anda tentang artikel ini..."
+                            placeholder="Bagikan pendapat Anda tentang wisata ini..."
                             className="min-h-[120px]"
                             value={reviewComment}
                             onChange={(e) => setReviewComment(e.target.value)}

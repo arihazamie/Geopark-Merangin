@@ -8,7 +8,6 @@ import { MapPin, Star, Search, CheckCircle2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 
 // Define the types based on your Prisma schema and API response
 interface Review {
