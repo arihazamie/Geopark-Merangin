@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,11 @@ interface MapLocationPickerProps {
   height?: string;
 }
 
+// Move constants outside component or memoize them
+const defaultLat = -2.1;
+const defaultLng = 102.0;
+const defaultZoom = 9;
+
 export default function MapLocationPicker({
   onLocationSelect,
   initialLat,
@@ -40,59 +45,60 @@ export default function MapLocationPicker({
   const [isLoadingBoundary, setIsLoadingBoundary] = useState(true);
   const [geoparkInfo, setGeoparkInfo] = useState<any>(null);
 
-  // Center coordinates for Geopark Merangin (calculated from boundary data)
-  const defaultLat = -2.1;
-  const defaultLng = 102.0;
-  const defaultZoom = 9;
+  // Memoize the functions with useCallback
+  const createDraggableMarker = useCallback(
+    (lat: number, lng: number) => {
+      if (!mapInstanceRef.current) return;
 
-  // Function to create draggable marker
-  const createDraggableMarker = (lat: number, lng: number) => {
-    if (!mapInstanceRef.current) return;
+      // Remove existing marker
+      if (markerRef.current) {
+        mapInstanceRef.current.removeLayer(markerRef.current);
+      }
 
-    // Remove existing marker
-    if (markerRef.current) {
-      mapInstanceRef.current.removeLayer(markerRef.current);
-    }
-
-    // Create draggable marker
-    const marker = L.marker([lat, lng], { draggable: true }).addTo(
-      mapInstanceRef.current
-    );
-    marker
-      .bindPopup(`Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`)
-      .openPopup();
-
-    // Add drag event listener
-    marker.on("dragend", (e) => {
-      const position = e.target.getLatLng();
-      const newLat = position.lat;
-      const newLng = position.lng;
-
+      // Create draggable marker
+      const marker = L.marker([lat, lng], { draggable: true }).addTo(
+        mapInstanceRef.current
+      );
       marker
-        .bindPopup(`Lat: ${newLat.toFixed(6)}, Lng: ${newLng.toFixed(6)}`)
+        .bindPopup(`Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`)
         .openPopup();
-      setSelectedCoords({ lat: newLat, lng: newLng });
-      onLocationSelect(newLat, newLng);
-    });
 
-    // Add drag start event for visual feedback
-    marker.on("dragstart", () => {
-      marker.closePopup();
-    });
+      // Add drag event listener
+      marker.on("dragend", (e) => {
+        const position = e.target.getLatLng();
+        const newLat = position.lat;
+        const newLng = position.lng;
 
-    markerRef.current = marker;
-    setSelectedCoords({ lat, lng });
-    onLocationSelect(lat, lng);
-  };
+        marker
+          .bindPopup(`Lat: ${newLat.toFixed(6)}, Lng: ${newLng.toFixed(6)}`)
+          .openPopup();
+        setSelectedCoords({ lat: newLat, lng: newLng });
+        onLocationSelect(newLat, newLng);
+      });
+
+      // Add drag start event for visual feedback
+      marker.on("dragstart", () => {
+        marker.closePopup();
+      });
+
+      markerRef.current = marker;
+      setSelectedCoords({ lat, lng });
+      onLocationSelect(lat, lng);
+    },
+    [onLocationSelect]
+  );
 
   // Function to handle map click events
-  const handleMapClick = (e: L.LeafletMouseEvent) => {
-    const { lat, lng } = e.latlng;
-    createDraggableMarker(lat, lng);
-  };
+  const handleMapClick = useCallback(
+    (e: L.LeafletMouseEvent) => {
+      const { lat, lng } = e.latlng;
+      createDraggableMarker(lat, lng);
+    },
+    [createDraggableMarker]
+  );
 
   // Function to load GeoJSON boundary
-  const loadGeoparkBoundary = async () => {
+  const loadGeoparkBoundary = useCallback(async () => {
     try {
       setIsLoadingBoundary(true);
       const response = await fetch("/data/geopark.geojson");
@@ -126,33 +132,33 @@ export default function MapLocationPicker({
               setGeoparkInfo(feature.properties);
 
               const popupContent = `
-                <div class="p-2 max-w-sm">
-                  <h3 class="font-bold text-lg mb-2 text-emerald-700">${
-                    feature.properties.name || "Geopark Merangin"
-                  }</h3>
-                  <div class="space-y-1 text-sm">
-                    <div><strong>Negara:</strong> ${
-                      feature.properties.Country
-                    }</div>
-                    <div><strong>Provinsi:</strong> ${
-                      feature.properties.Province
-                    }</div>
-                    <div><strong>Kabupaten:</strong> ${
-                      feature.properties.Regency
-                    }</div>
-                    <div><strong>Kecamatan:</strong> ${
-                      feature.properties.Districts
-                    }</div>
-                    <div><strong>Desa:</strong> ${
-                      feature.properties.Villages
-                    }</div>
-                    <div><strong>Luas:</strong> ${feature.properties.Area}</div>
-                    <div><strong>Populasi:</strong> ${
-                      feature.properties.Population
-                    }</div>
-                  </div>
+              <div class="p-2 max-w-sm">
+                <h3 class="font-bold text-lg mb-2 text-emerald-700">${
+                  feature.properties.name || "Geopark Merangin"
+                }</h3>
+                <div class="space-y-1 text-sm">
+                  <div><strong>Negara:</strong> ${
+                    feature.properties.Country
+                  }</div>
+                  <div><strong>Provinsi:</strong> ${
+                    feature.properties.Province
+                  }</div>
+                  <div><strong>Kabupaten:</strong> ${
+                    feature.properties.Regency
+                  }</div>
+                  <div><strong>Kecamatan:</strong> ${
+                    feature.properties.Districts
+                  }</div>
+                  <div><strong>Desa:</strong> ${
+                    feature.properties.Villages
+                  }</div>
+                  <div><strong>Luas:</strong> ${feature.properties.Area}</div>
+                  <div><strong>Populasi:</strong> ${
+                    feature.properties.Population
+                  }</div>
                 </div>
-              `;
+              </div>
+            `;
 
               // Only bind popup, don't interfere with click events
               layer.bindPopup(popupContent);
@@ -186,7 +192,7 @@ export default function MapLocationPicker({
     } finally {
       setIsLoadingBoundary(false);
     }
-  };
+  }, [handleMapClick]);
 
   useEffect(() => {
     fixLeafletIcon();
@@ -241,7 +247,13 @@ export default function MapLocationPicker({
         mapInstanceRef.current = null;
       }
     };
-  }, [initialLat, initialLng]);
+  }, [
+    initialLat,
+    initialLng,
+    createDraggableMarker,
+    handleMapClick,
+    loadGeoparkBoundary,
+  ]);
 
   const resetLocation = () => {
     if (mapInstanceRef.current && markerRef.current) {
