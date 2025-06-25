@@ -15,6 +15,7 @@ import {
   Check,
   X,
   Loader,
+  Map,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
@@ -52,6 +53,8 @@ import { Progress } from "@/components/ui/progress";
 import { WisataPdfButton } from "../export/wisata/Button";
 import { LoadingCards } from "@/components/ui/loading-spinner";
 import Image from "next/image";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import MapLocationPicker from "@/components/Pengelola/components/map-location-picker";
 
 interface Wisata {
   id: number;
@@ -136,6 +139,18 @@ export default function WisataPage() {
   );
   const [expandedWisata, setExpandedWisata] = useState<number | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+
+  // New states for map picker
+  const [selectedLatitude, setSelectedLatitude] = useState<number>(0);
+  const [selectedLongitude, setSelectedLongitude] = useState<number>(0);
+  const [editSelectedLatitude, setEditSelectedLatitude] = useState<number>(0);
+  const [editSelectedLongitude, setEditSelectedLongitude] = useState<number>(0);
+  const [locationInputMethod, setLocationInputMethod] = useState<
+    "manual" | "map"
+  >("manual");
+  const [editLocationInputMethod, setEditLocationInputMethod] = useState<
+    "manual" | "map"
+  >("manual");
 
   const addFormRef = useRef<HTMLFormElement>(null);
   const editFormRef = useRef<HTMLFormElement>(null);
@@ -233,6 +248,15 @@ export default function WisataPage() {
       setPreviewImages(newPreviewUrls);
     }
   };
+  const handleLocationSelect = (lat: number, lng: number, isEdit = false) => {
+    if (isEdit) {
+      setEditSelectedLatitude(lat);
+      setEditSelectedLongitude(lng);
+    } else {
+      setSelectedLatitude(lat);
+      setSelectedLongitude(lng);
+    }
+  };
 
   const handleAddWisata = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -241,29 +265,42 @@ export default function WisataPage() {
     setUploadProgress(10);
 
     try {
-      // Get form data
       const formData = new FormData(e.currentTarget);
 
-      // Validate required fields
+      // Use coordinates from map picker if map method is selected
+      let latitude: number;
+      let longitude: number;
+
+      if (locationInputMethod === "map") {
+        latitude = selectedLatitude;
+        longitude = selectedLongitude;
+        // Update form data with selected coordinates
+        formData.set("latitude", selectedLatitude.toString());
+        formData.set("longitude", selectedLongitude.toString());
+      } else {
+        latitude = Number.parseFloat(
+          formData.get("latitude")?.toString() || "0"
+        );
+        longitude = Number.parseFloat(
+          formData.get("longitude")?.toString() || "0"
+        );
+      }
+
       const name = formData.get("name")?.toString();
       const description = formData.get("description")?.toString();
       const location = formData.get("location")?.toString();
-      const latitude = formData.get("latitude")?.toString();
-      const longitude = formData.get("longitude")?.toString();
-      const imageFiles = formData.getAll("images") as File[];
 
-      // Validate required fields
       if (!name || !description || !location || !latitude || !longitude) {
         throw new Error("Semua field wajib diisi");
       }
-      if (
-        imageFiles.length === 0 ||
-        !imageFiles.every((f) => f instanceof File && f.size > 0)
-      ) {
-        throw new Error("Minimal satu gambar valid diperlukan");
+
+      if (latitude === 0 && longitude === 0) {
+        throw new Error(
+          "Silakan pilih lokasi pada peta atau masukkan koordinat manual"
+        );
       }
 
-      // Simulate progress upload
+      // Simulate progress
       const progressInterval = setInterval(() => {
         setUploadProgress((prev) => {
           const newProgress = prev + Math.floor(Math.random() * 15);
@@ -291,10 +328,14 @@ export default function WisataPage() {
         throw new Error(errorMessage);
       }
 
-      // Success response
-      await fetchWisata(); // Refresh wisata list
+      // Success response - refresh the data from server
+      await fetchWisata();
+
       setOpenAddDialog(false);
       setPreviewImages([]);
+      setSelectedLatitude(0);
+      setSelectedLongitude(0);
+      setLocationInputMethod("manual");
       if (addFormRef.current) addFormRef.current.reset();
       toast.success("Wisata berhasil ditambahkan");
     } catch (error) {
@@ -547,7 +588,7 @@ export default function WisataPage() {
                 Tambah Wisata
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px]">
+            <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Tambah Wisata Baru</DialogTitle>
                 <DialogDescription>
@@ -613,51 +654,89 @@ export default function WisataPage() {
                         <SelectValue placeholder="Pilih tipe wisata" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="pantai">Pantai</SelectItem>
-                        <SelectItem value="gunung">Gunung</SelectItem>
-                        <SelectItem value="candi">Candi</SelectItem>
-                        <SelectItem value="taman">Taman</SelectItem>
-                        <SelectItem value="danau">Danau</SelectItem>
-                        <SelectItem value="air-terjun">Air Terjun</SelectItem>
+                        <SelectItem value="geologi">Geologi</SelectItem>
+                        <SelectItem value="biologi">Biologi</SelectItem>
                         <SelectItem value="budaya">Budaya</SelectItem>
-                        <SelectItem value="sejarah">Sejarah</SelectItem>
-                        <SelectItem value="religi">Religi</SelectItem>
-                        <SelectItem value="kuliner">Kuliner</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="grid items-center grid-cols-4 gap-4">
-                    <Label
-                      htmlFor="latitude"
-                      className="text-right">
-                      Latitude
-                    </Label>
-                    <Input
-                      id="latitude"
-                      name="latitude"
-                      type="number"
-                      step="any"
-                      placeholder="Latitude"
-                      className="col-span-3"
-                      required
-                    />
+
+                  {/* Location Input Method Selection */}
+                  <div className="grid items-start grid-cols-4 gap-4">
+                    <Label className="pt-2 text-right">Koordinat</Label>
+                    <div className="col-span-3 space-y-4">
+                      <Tabs
+                        value={locationInputMethod}
+                        onValueChange={(value) =>
+                          setLocationInputMethod(value as "manual" | "map")
+                        }>
+                        <TabsList className="grid w-full grid-cols-2">
+                          <TabsTrigger
+                            value="manual"
+                            className="flex items-center gap-2">
+                            <MapPin className="w-4 h-4" />
+                            Input Manual
+                          </TabsTrigger>
+                          <TabsTrigger
+                            value="map"
+                            className="flex items-center gap-2">
+                            <Map className="w-4 h-4" />
+                            Pilih di Peta
+                          </TabsTrigger>
+                        </TabsList>
+
+                        <TabsContent
+                          value="manual"
+                          className="space-y-3">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <Label htmlFor="latitude">Latitude</Label>
+                              <Input
+                                id="latitude"
+                                name="latitude"
+                                type="number"
+                                step="any"
+                                placeholder="Latitude"
+                                required={locationInputMethod === "manual"}
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="longitude">Longitude</Label>
+                              <Input
+                                id="longitude"
+                                name="longitude"
+                                type="number"
+                                step="any"
+                                placeholder="Longitude"
+                                required={locationInputMethod === "manual"}
+                              />
+                            </div>
+                          </div>
+                        </TabsContent>
+
+                        <TabsContent value="map">
+                          <MapLocationPicker
+                            onLocationSelect={(lat, lng) =>
+                              handleLocationSelect(lat, lng, false)
+                            }
+                            height="300px"
+                          />
+                          {/* Hidden inputs to store map coordinates */}
+                          <input
+                            type="hidden"
+                            name="latitude"
+                            value={selectedLatitude || ""}
+                          />
+                          <input
+                            type="hidden"
+                            name="longitude"
+                            value={selectedLongitude || ""}
+                          />
+                        </TabsContent>
+                      </Tabs>
+                    </div>
                   </div>
-                  <div className="grid items-center grid-cols-4 gap-4">
-                    <Label
-                      htmlFor="longitude"
-                      className="text-right">
-                      Longitude
-                    </Label>
-                    <Input
-                      id="longitude"
-                      name="longitude"
-                      type="number"
-                      step="any"
-                      placeholder="Longitude"
-                      className="col-span-3"
-                      required
-                    />
-                  </div>
+
                   <div className="grid items-start grid-cols-4 gap-4">
                     <Label
                       htmlFor="images"
@@ -693,6 +772,8 @@ export default function WisataPage() {
                               <Image
                                 src={url || "/placeholder.svg"}
                                 alt={`Preview ${index + 1}`}
+                                width={150}
+                                height={150}
                                 className="object-cover w-full h-full"
                               />
                             </div>
@@ -724,6 +805,9 @@ export default function WisataPage() {
                       setOpenAddDialog(false);
                       setFormError(null);
                       setPreviewImages([]);
+                      setSelectedLatitude(0);
+                      setSelectedLongitude(0);
+                      setLocationInputMethod("manual");
                       if (addFormRef.current) addFormRef.current.reset();
                     }}
                     disabled={isSubmitting}>
@@ -1008,16 +1092,9 @@ export default function WisataPage() {
                       <SelectValue placeholder="Pilih tipe wisata" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="pantai">Pantai</SelectItem>
-                      <SelectItem value="gunung">Gunung</SelectItem>
-                      <SelectItem value="candi">Candi</SelectItem>
-                      <SelectItem value="taman">Taman</SelectItem>
-                      <SelectItem value="danau">Danau</SelectItem>
-                      <SelectItem value="air-terjun">Air Terjun</SelectItem>
-                      <SelectItem value="budaya">Budaya</SelectItem>
-                      <SelectItem value="sejarah">Sejarah</SelectItem>
-                      <SelectItem value="religi">Religi</SelectItem>
-                      <SelectItem value="kuliner">Kuliner</SelectItem>
+                      <SelectItem value="Geologi">Geologi</SelectItem>
+                      <SelectItem value="Biologi">Biologi</SelectItem>
+                      <SelectItem value="Budaya">Budaya</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

@@ -1,8 +1,8 @@
 // app/api/wisata/route.ts
 import { NextResponse } from "next/server";
-import { createImageHandler } from "../../../lib/imageHandler";
 import { prisma } from "../../../lib/prisma";
 import { z } from "zod";
+import { createImageHandler } from "@/lib/imageHandler";
 
 // Nonaktifkan body parser bawaan agar kita bisa menggunakan request.formData()
 export const config = {
@@ -11,13 +11,24 @@ export const config = {
   },
 };
 
+const getSchema = z.object({
+  id: z
+    .string()
+    .transform((val) => Number.parseInt(val, 10))
+    .optional(),
+  populer: z
+    .string()
+    .optional()
+    .transform((val) => val === "true"),
+});
+
 export async function GET(request: Request) {
   const timestamp = new Date().toISOString();
 
   try {
     // Parse and validate query parameters
     const { searchParams } = new URL(request.url);
-    const { id } = getSchema.parse(Object.fromEntries(searchParams));
+    const { id, populer } = getSchema.parse(Object.fromEntries(searchParams));
 
     // Log request details
     console.log("GET /api/wisata request:", {
@@ -40,6 +51,11 @@ export async function GET(request: Request) {
         include: {
           pengelola: true,
           updatedBy: true,
+          _count: {
+            select: {
+              ulasans: true,
+            },
+          },
         },
       });
 
@@ -64,7 +80,6 @@ export async function GET(request: Request) {
         images: true,
         type: true,
         location: true,
-        reviews: true,
         isVerified: true,
         pengelolaId: true,
         createdAt: true,
@@ -81,7 +96,21 @@ export async function GET(request: Request) {
             name: true,
           },
         },
+        _count: {
+          select: {
+            ulasans: true,
+          },
+        },
       },
+      orderBy: populer
+        ? {
+            ulasans: {
+              _count: "desc",
+            },
+          }
+        : {
+            createdAt: "asc",
+          },
     });
 
     return NextResponse.json({
@@ -116,14 +145,6 @@ const imageHandler = createImageHandler({
   allowedTypes: /^image\/(jpeg|jpg|png)$/, // Fixed regex to match content-type format
   maxFileSize: 3 * 1024 * 1024, // 2MB
   prefix: "wisata",
-});
-
-// Schema validation for query params
-const getSchema = z.object({
-  id: z
-    .string()
-    .optional()
-    .transform((val) => (val ? Number(val) : undefined)),
 });
 
 /**
@@ -162,7 +183,6 @@ export async function POST(request: Request) {
         description,
         location,
         type: type || undefined,
-        reviews: reviews ? parseInt(reviews) : 0, // Hanya reviews
         latitude: latitude ? parseFloat(latitude) : 0,
         longitude: longitude ? parseFloat(longitude) : 0,
         images,
@@ -227,7 +247,6 @@ export async function PUT(request: Request) {
         description: description || undefined,
         location: location || undefined,
         type: type || undefined,
-        reviews: reviews ? parseInt(reviews) : undefined, // Hanya reviews
         latitude: latitude ? parseFloat(latitude) : undefined,
         longitude: longitude ? parseFloat(longitude) : undefined,
         pengelolaId: pengelolaId ? parseInt(pengelolaId) : undefined,

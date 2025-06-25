@@ -52,6 +52,15 @@ interface FormattedEventData {
 export function EventPdfButton() {
   const [isLoading, setIsLoading] = useState(false);
 
+  // Helper function to format date as dd/mm/yy
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const dd = String(date.getDate()).padStart(2, "0");
+    const mm = String(date.getMonth() + 1).padStart(2, "0");
+    const yy = String(date.getFullYear()).slice(-2);
+    return `${dd}/${mm}/${yy}`;
+  };
+
   const handleExport = async () => {
     setIsLoading(true);
     try {
@@ -68,15 +77,12 @@ export function EventPdfButton() {
       }
 
       const result = await response.json();
-
-      // Handle both array response and object with data property
       const eventData = Array.isArray(result) ? result : result.data;
 
       if (!eventData || !Array.isArray(eventData)) {
         throw new Error("No event data returned from API");
       }
 
-      // Transform EventData to FormattedEventData
       const formattedData: FormattedEventData[] = eventData.map(
         (item: EventData) => ({
           id: item.id.toString(),
@@ -85,31 +91,20 @@ export function EventPdfButton() {
           wisataName: item.wisata.name,
           pengelolaName: item.pengelola.name,
           status: item.isVerified ? "Verified" : "Not Verified",
-          startDate: new Date(item.startDate).toLocaleDateString("id-ID", {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-          endDate: new Date(item.endDate).toLocaleDateString("id-ID", {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-          createdDate: new Date(item.createdAt).toLocaleDateString("id-ID"),
+          startDate: formatDate(item.startDate),
+          endDate: formatDate(item.endDate),
+          createdDate: formatDate(item.createdAt),
           updatedBy: item.updatedBy.name,
         })
       );
 
-      // Generate and download PDF
       const blob = await pdf(
         <EventPdfDocument data={formattedData} />
       ).toBlob();
-      const today = new Date().toISOString().split("T")[0];
-      saveAs(blob, `laporan-data-event-${today}.pdf`);
+
+      const today = new Date();
+      const fileDate = formatDate(today.toISOString());
+      saveAs(blob, `laporan-data-event-${fileDate}.pdf`);
     } catch (error) {
       console.error("Error exporting PDF:", error);
       alert(
@@ -135,7 +130,9 @@ export function EventPdfButton() {
       ) : (
         <Download size={18} />
       )}
-      <span>{isLoading ? "Memproses..." : "Ekspor Event ke PDF"}</span>
+      <span className="ml-2">
+        {isLoading ? "Memproses..." : "Ekspor Event ke PDF"}
+      </span>
     </Button>
   );
 }

@@ -1,5 +1,7 @@
 "use client";
 
+import { DialogTrigger } from "@/components/ui/dialog";
+
 import type React from "react";
 import { useState, useEffect, useRef } from "react";
 import {
@@ -14,6 +16,7 @@ import {
   Tag,
   Check,
   X,
+  Map,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
@@ -27,7 +30,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -49,7 +51,9 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { LoadingCards } from "@/components/ui/loading-spinner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Image from "next/image";
+import MapLocationPicker from "./map-location-picker";
 
 interface Wisata {
   id: number;
@@ -134,6 +138,18 @@ export default function WisataPage() {
   );
   const [formError, setFormError] = useState<string | null>(null);
 
+  // New states for map picker
+  const [selectedLatitude, setSelectedLatitude] = useState<number>(0);
+  const [selectedLongitude, setSelectedLongitude] = useState<number>(0);
+  const [editSelectedLatitude, setEditSelectedLatitude] = useState<number>(0);
+  const [editSelectedLongitude, setEditSelectedLongitude] = useState<number>(0);
+  const [locationInputMethod, setLocationInputMethod] = useState<
+    "manual" | "map"
+  >("manual");
+  const [editLocationInputMethod, setEditLocationInputMethod] = useState<
+    "manual" | "map"
+  >("manual");
+
   const addFormRef = useRef<HTMLFormElement>(null);
   const editFormRef = useRef<HTMLFormElement>(null);
 
@@ -145,14 +161,12 @@ export default function WisataPage() {
     if (wisataData.length > 0) {
       let filtered = wisataData;
 
-      // Filter by tab
       if (activeTab === "verified") {
         filtered = filtered.filter((wisata) => wisata.isVerified);
       } else if (activeTab === "unverified") {
         filtered = filtered.filter((wisata) => !wisata.isVerified);
       }
 
-      // Filter by search term
       if (searchTerm) {
         filtered = filtered.filter(
           (wisata) =>
@@ -205,6 +219,9 @@ export default function WisataPage() {
           ? error.message
           : "Gagal memuat data wisata. Silakan coba lagi."
       );
+      // Set empty arrays on error
+      setWisataData([]);
+      setFilteredWisata([]);
     } finally {
       setIsLoading(false);
     }
@@ -231,6 +248,16 @@ export default function WisataPage() {
     }
   };
 
+  const handleLocationSelect = (lat: number, lng: number, isEdit = false) => {
+    if (isEdit) {
+      setEditSelectedLatitude(lat);
+      setEditSelectedLongitude(lng);
+    } else {
+      setSelectedLatitude(lat);
+      setSelectedLongitude(lng);
+    }
+  };
+
   const handleAddWisata = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -238,29 +265,42 @@ export default function WisataPage() {
     setUploadProgress(10);
 
     try {
-      // Get form data
       const formData = new FormData(e.currentTarget);
 
-      // Validate required fields
+      // Use coordinates from map picker if map method is selected
+      let latitude: number;
+      let longitude: number;
+
+      if (locationInputMethod === "map") {
+        latitude = selectedLatitude;
+        longitude = selectedLongitude;
+        // Update form data with selected coordinates
+        formData.set("latitude", selectedLatitude.toString());
+        formData.set("longitude", selectedLongitude.toString());
+      } else {
+        latitude = Number.parseFloat(
+          formData.get("latitude")?.toString() || "0"
+        );
+        longitude = Number.parseFloat(
+          formData.get("longitude")?.toString() || "0"
+        );
+      }
+
       const name = formData.get("name")?.toString();
       const description = formData.get("description")?.toString();
       const location = formData.get("location")?.toString();
-      const latitude = formData.get("latitude")?.toString();
-      const longitude = formData.get("longitude")?.toString();
-      const imageFiles = formData.getAll("images") as File[];
 
-      // Validate required fields
       if (!name || !description || !location || !latitude || !longitude) {
         throw new Error("Semua field wajib diisi");
       }
-      if (
-        imageFiles.length === 0 ||
-        !imageFiles.every((f) => f instanceof File && f.size > 0)
-      ) {
-        throw new Error("Minimal satu gambar valid diperlukan");
+
+      if (latitude === 0 && longitude === 0) {
+        throw new Error(
+          "Silakan pilih lokasi pada peta atau masukkan koordinat manual"
+        );
       }
 
-      // Simulate progress upload
+      // Simulate progress
       const progressInterval = setInterval(() => {
         setUploadProgress((prev) => {
           const newProgress = prev + Math.floor(Math.random() * 15);
@@ -288,10 +328,14 @@ export default function WisataPage() {
         throw new Error(errorMessage);
       }
 
-      // Success response
-      await fetchWisata(); // Refresh wisata list
+      // Success response - refresh the data from server
+      await fetchWisata();
+
       setOpenAddDialog(false);
       setPreviewImages([]);
+      setSelectedLatitude(0);
+      setSelectedLongitude(0);
+      setLocationInputMethod("manual");
       if (addFormRef.current) addFormRef.current.reset();
       toast.success("Wisata berhasil ditambahkan");
     } catch (error) {
@@ -319,18 +363,33 @@ export default function WisataPage() {
     try {
       const formData = new FormData(e.currentTarget);
 
-      // Validate required fields
+      let latitude: number;
+      let longitude: number;
+
+      if (editLocationInputMethod === "map") {
+        latitude = editSelectedLatitude;
+        longitude = editSelectedLongitude;
+        // Update form data with selected coordinates
+        formData.set("latitude", editSelectedLatitude.toString());
+        formData.set("longitude", editSelectedLongitude.toString());
+      } else {
+        latitude = Number.parseFloat(
+          formData.get("latitude")?.toString() || "0"
+        );
+        longitude = Number.parseFloat(
+          formData.get("longitude")?.toString() || "0"
+        );
+      }
+
       const name = formData.get("name") as string;
       const description = formData.get("description") as string;
       const location = formData.get("location") as string;
-      const latitude = formData.get("latitude") as string;
-      const longitude = formData.get("longitude") as string;
 
       if (!name || !description || !location || !latitude || !longitude) {
         throw new Error("Semua field wajib diisi");
       }
 
-      // Simulate progress for better UX
+      // Simulate progress
       const progressInterval = setInterval(() => {
         setUploadProgress((prev) => {
           const newProgress = prev + Math.floor(Math.random() * 15);
@@ -348,20 +407,23 @@ export default function WisataPage() {
 
       if (!response.ok) {
         let errorMessage = `Server error: ${response.status} ${response.statusText}`;
-
         try {
           const errorData = await response.json();
           errorMessage = errorData.error || errorMessage;
         } catch (parseError) {
           console.error("Error parsing error response:", parseError);
         }
-
         throw new Error(errorMessage);
       }
 
+      // Success response - refresh the data from server
       await fetchWisata();
+
       setOpenEditDialog(false);
       setEditPreviewImages([]);
+      setEditSelectedLatitude(0);
+      setEditSelectedLongitude(0);
+      setEditLocationInputMethod("manual");
       toast.success("Wisata berhasil diperbarui");
     } catch (error) {
       console.error("Error updating wisata:", error);
@@ -405,12 +467,8 @@ export default function WisataPage() {
         throw new Error(errorMessage);
       }
 
-      // Update local state after successful deletion
-      setWisataData(wisataData.filter((w) => w.id !== wisataToDelete.id));
-      setFilteredWisata(
-        filteredWisata.filter((w) => w.id !== wisataToDelete.id)
-      );
-
+      // Refresh data from server after successful deletion
+      await fetchWisata();
       toast.success("Wisata berhasil dihapus");
     } catch (error) {
       console.error("Error deleting wisata:", error);
@@ -428,6 +486,8 @@ export default function WisataPage() {
   const handleEdit = (wisata: Wisata) => {
     setSelectedWisata(wisata);
     setEditPreviewImages(wisata.images || []);
+    setEditSelectedLatitude(wisata.latitude);
+    setEditSelectedLongitude(wisata.longitude);
     setFormError(null);
     setOpenEditDialog(true);
   };
@@ -489,7 +549,7 @@ export default function WisataPage() {
                 Tambah Wisata
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px]">
+            <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Tambah Wisata Baru</DialogTitle>
                 <DialogDescription>
@@ -555,51 +615,89 @@ export default function WisataPage() {
                         <SelectValue placeholder="Pilih tipe wisata" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="pantai">Pantai</SelectItem>
-                        <SelectItem value="gunung">Gunung</SelectItem>
-                        <SelectItem value="candi">Candi</SelectItem>
-                        <SelectItem value="taman">Taman</SelectItem>
-                        <SelectItem value="danau">Danau</SelectItem>
-                        <SelectItem value="air-terjun">Air Terjun</SelectItem>
+                        <SelectItem value="geologi">Geologi</SelectItem>
+                        <SelectItem value="biologi">Biologi</SelectItem>
                         <SelectItem value="budaya">Budaya</SelectItem>
-                        <SelectItem value="sejarah">Sejarah</SelectItem>
-                        <SelectItem value="religi">Religi</SelectItem>
-                        <SelectItem value="kuliner">Kuliner</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="grid items-center grid-cols-4 gap-4">
-                    <Label
-                      htmlFor="latitude"
-                      className="text-right">
-                      Latitude
-                    </Label>
-                    <Input
-                      id="latitude"
-                      name="latitude"
-                      type="number"
-                      step="any"
-                      placeholder="Latitude"
-                      className="col-span-3"
-                      required
-                    />
+
+                  {/* Location Input Method Selection */}
+                  <div className="grid items-start grid-cols-4 gap-4">
+                    <Label className="pt-2 text-right">Koordinat</Label>
+                    <div className="col-span-3 space-y-4">
+                      <Tabs
+                        value={locationInputMethod}
+                        onValueChange={(value) =>
+                          setLocationInputMethod(value as "manual" | "map")
+                        }>
+                        <TabsList className="grid w-full grid-cols-2">
+                          <TabsTrigger
+                            value="manual"
+                            className="flex items-center gap-2">
+                            <MapPin className="w-4 h-4" />
+                            Input Manual
+                          </TabsTrigger>
+                          <TabsTrigger
+                            value="map"
+                            className="flex items-center gap-2">
+                            <Map className="w-4 h-4" />
+                            Pilih di Peta
+                          </TabsTrigger>
+                        </TabsList>
+
+                        <TabsContent
+                          value="manual"
+                          className="space-y-3">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <Label htmlFor="latitude">Latitude</Label>
+                              <Input
+                                id="latitude"
+                                name="latitude"
+                                type="number"
+                                step="any"
+                                placeholder="Latitude"
+                                required={locationInputMethod === "manual"}
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="longitude">Longitude</Label>
+                              <Input
+                                id="longitude"
+                                name="longitude"
+                                type="number"
+                                step="any"
+                                placeholder="Longitude"
+                                required={locationInputMethod === "manual"}
+                              />
+                            </div>
+                          </div>
+                        </TabsContent>
+
+                        <TabsContent value="map">
+                          <MapLocationPicker
+                            onLocationSelect={(lat, lng) =>
+                              handleLocationSelect(lat, lng, false)
+                            }
+                            height="300px"
+                          />
+                          {/* Hidden inputs to store map coordinates */}
+                          <input
+                            type="hidden"
+                            name="latitude"
+                            value={selectedLatitude || ""}
+                          />
+                          <input
+                            type="hidden"
+                            name="longitude"
+                            value={selectedLongitude || ""}
+                          />
+                        </TabsContent>
+                      </Tabs>
+                    </div>
                   </div>
-                  <div className="grid items-center grid-cols-4 gap-4">
-                    <Label
-                      htmlFor="longitude"
-                      className="text-right">
-                      Longitude
-                    </Label>
-                    <Input
-                      id="longitude"
-                      name="longitude"
-                      type="number"
-                      step="any"
-                      placeholder="Longitude"
-                      className="col-span-3"
-                      required
-                    />
-                  </div>
+
                   <div className="grid items-start grid-cols-4 gap-4">
                     <Label
                       htmlFor="images"
@@ -668,6 +766,9 @@ export default function WisataPage() {
                       setOpenAddDialog(false);
                       setFormError(null);
                       setPreviewImages([]);
+                      setSelectedLatitude(0);
+                      setSelectedLongitude(0);
+                      setLocationInputMethod("manual");
                       if (addFormRef.current) addFormRef.current.reset();
                     }}
                     disabled={isSubmitting}>
@@ -729,7 +830,6 @@ export default function WisataPage() {
         </div>
       </div>
 
-      {/* Card-based UI  Tampilan Data Wiasata*/}
       <Card className="overflow-hidden">
         <div className="p-4 border-b">
           <h3 className="text-lg font-medium">Daftar Wisata</h3>
@@ -838,10 +938,12 @@ export default function WisataPage() {
           )}
         </div>
       </Card>
+
+      {/* Edit Dialog */}
       <Dialog
         open={openEditDialog}
         onOpenChange={setOpenEditDialog}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Wisata</DialogTitle>
             <DialogDescription>
@@ -910,44 +1012,95 @@ export default function WisataPage() {
                       <SelectValue placeholder="Pilih tipe wisata" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="pantai">Geologi</SelectItem>
-                      <SelectItem value="pantai">Biologi</SelectItem>
-                      <SelectItem value="pantai">Budaya</SelectItem>
+                      <SelectItem value="geologi">Geologi</SelectItem>
+                      <SelectItem value="biologi">Biologi</SelectItem>
+                      <SelectItem value="budaya">Budaya</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="grid items-center grid-cols-4 gap-4">
-                  <Label
-                    htmlFor="edit-latitude"
-                    className="text-right">
-                    Latitude
-                  </Label>
-                  <Input
-                    id="edit-latitude"
-                    name="latitude"
-                    type="number"
-                    step="any"
-                    defaultValue={selectedWisata.latitude}
-                    className="col-span-3"
-                    required
-                  />
+
+                {/* Edit Location Input Method Selection */}
+                <div className="grid items-start grid-cols-4 gap-4">
+                  <Label className="pt-2 text-right">Koordinat</Label>
+                  <div className="col-span-3 space-y-4">
+                    <Tabs
+                      value={editLocationInputMethod}
+                      onValueChange={(value) =>
+                        setEditLocationInputMethod(value as "manual" | "map")
+                      }>
+                      <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger
+                          value="manual"
+                          className="flex items-center gap-2">
+                          <MapPin className="w-4 h-4" />
+                          Input Manual
+                        </TabsTrigger>
+                        <TabsTrigger
+                          value="map"
+                          className="flex items-center gap-2">
+                          <Map className="w-4 h-4" />
+                          Pilih di Peta
+                        </TabsTrigger>
+                      </TabsList>
+
+                      <TabsContent
+                        value="manual"
+                        className="space-y-3">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label htmlFor="edit-latitude">Latitude</Label>
+                            <Input
+                              id="edit-latitude"
+                              name="latitude"
+                              type="number"
+                              step="any"
+                              defaultValue={selectedWisata.latitude}
+                              required={editLocationInputMethod === "manual"}
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="edit-longitude">Longitude</Label>
+                            <Input
+                              id="edit-longitude"
+                              name="longitude"
+                              type="number"
+                              step="any"
+                              defaultValue={selectedWisata.longitude}
+                              required={editLocationInputMethod === "manual"}
+                            />
+                          </div>
+                        </div>
+                      </TabsContent>
+
+                      <TabsContent value="map">
+                        <MapLocationPicker
+                          onLocationSelect={(lat, lng) =>
+                            handleLocationSelect(lat, lng, true)
+                          }
+                          initialLat={selectedWisata.latitude}
+                          initialLng={selectedWisata.longitude}
+                          height="300px"
+                        />
+                        {/* Hidden inputs to store map coordinates */}
+                        <input
+                          type="hidden"
+                          name="latitude"
+                          value={
+                            editSelectedLatitude || selectedWisata.latitude
+                          }
+                        />
+                        <input
+                          type="hidden"
+                          name="longitude"
+                          value={
+                            editSelectedLongitude || selectedWisata.longitude
+                          }
+                        />
+                      </TabsContent>
+                    </Tabs>
+                  </div>
                 </div>
-                <div className="grid items-center grid-cols-4 gap-4">
-                  <Label
-                    htmlFor="edit-longitude"
-                    className="text-right">
-                    Longitude
-                  </Label>
-                  <Input
-                    id="edit-longitude"
-                    name="longitude"
-                    type="number"
-                    step="any"
-                    defaultValue={selectedWisata.longitude}
-                    className="col-span-3"
-                    required
-                  />
-                </div>
+
                 <div className="grid items-start grid-cols-4 gap-4">
                   <Label
                     htmlFor="edit-images"
@@ -1030,6 +1183,9 @@ export default function WisataPage() {
                     setOpenEditDialog(false);
                     setFormError(null);
                     setEditPreviewImages([]);
+                    setEditSelectedLatitude(0);
+                    setEditSelectedLongitude(0);
+                    setEditLocationInputMethod("manual");
                   }}
                   disabled={isSubmitting}>
                   Batal
@@ -1044,6 +1200,7 @@ export default function WisataPage() {
           )}
         </DialogContent>
       </Dialog>
+
       <DeleteConfirmationDialog
         isOpen={openDeleteDialog}
         onClose={() => setOpenDeleteDialog(false)}

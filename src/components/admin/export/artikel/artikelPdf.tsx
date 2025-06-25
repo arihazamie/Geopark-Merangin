@@ -1,8 +1,6 @@
 import { Document, Page, Text, View } from "@react-pdf/renderer";
-import { styles } from "../style";
-import { dayNames, monthNames } from "../style";
+import { styles, dayNames, monthNames } from "../style";
 
-// Define the type expected by TourismPdfDocument
 interface FormattedArticleData {
   id: string;
   title: string;
@@ -11,17 +9,15 @@ interface FormattedArticleData {
   createdDate: string;
 }
 
-// Props interface for TourismPdfDocument
 interface TourismPdfDocumentProps {
   data: FormattedArticleData[];
 }
 
 export function TourismPdfDocument({ data }: TourismPdfDocumentProps) {
-  // Get current date with proper Indonesian formatting
   const currentDate = new Date();
-
-  const formattedDay = dayNames[currentDate.getDay()];
-  const formattedDate = `${formattedDay}, ${currentDate.getDate()} ${
+  const formattedDate = `${
+    dayNames[currentDate.getDay()]
+  }, ${currentDate.getDate()} ${
     monthNames[currentDate.getMonth()]
   } ${currentDate.getFullYear()}`;
 
@@ -33,37 +29,36 @@ export function TourismPdfDocument({ data }: TourismPdfDocumentProps) {
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerContent}>
-            <View style={styles.titleContainer}>
-              <Text style={styles.title}>
-                DINAS PARIWISATA DAN KEBUDAYAAN KABUPATEN MERANGIN
-              </Text>
-              <Text style={styles.subtitle}>
-                Jl. H. Syamsudin Uban 1, Ps. Bangko, Kec. Bangko, Kabupaten
-                Merangin, Jambi 37313
-              </Text>
-              <Text style={styles.subtitle}>
-                Email: dispar.merangin@gmail.com | Telp: (0746) 21024
-              </Text>
-            </View>
+            <Text style={styles.title}>
+              DINAS PARIWISATA DAN KEBUDAYAAN KABUPATEN MERANGIN
+            </Text>
+            <Text style={styles.subtitle}>
+              Jl. H. Syamsudin Uban 1, Ps. Bangko, Kec. Bangko, Kabupaten
+              Merangin, Jambi 37313
+            </Text>
+            <Text style={styles.subtitle}>
+              Email: dispar.merangin@gmail.com | Telp: (0746) 21024
+            </Text>
           </View>
         </View>
 
-        <Text style={styles.reportTitle}>LAPORAN DATA ARTIKEL</Text>
+        {/* Judul Dokumen */}
+        <Text style={styles.reportTitle}>LAPORAN DATA ARTIKEL PARIWISATA</Text>
 
-        {/* Table */}
+        {/* Tabel Artikel */}
         <View style={styles.table}>
-          {/* Table Header */}
+          {/* Header */}
           <View style={styles.tableHeaderRow}>
             <View style={[styles.tableColHeader, styles.noCol]}>
               <Text>No</Text>
             </View>
             <View style={[styles.tableColHeader, styles.nameCol]}>
-              <Text>Judul</Text>
+              <Text>Judul Artikel</Text>
             </View>
             <View style={[styles.tableColHeader, styles.addressCol]}>
-              <Text>Ditulis</Text>
+              <Text>Nama Penulis</Text>
             </View>
-            <View style={[styles.tableColHeader, styles.typeCol]}>
+            <View style={[styles.tableColHeader, styles.dateCol]}>
               <Text>Tanggal Dibuat</Text>
             </View>
             <View style={[styles.tableColHeader, styles.verificationCol]}>
@@ -71,7 +66,7 @@ export function TourismPdfDocument({ data }: TourismPdfDocumentProps) {
             </View>
           </View>
 
-          {/* Table Rows */}
+          {/* Baris Tabel */}
           {data.map((item, index) => (
             <View
               key={item.id}
@@ -85,32 +80,41 @@ export function TourismPdfDocument({ data }: TourismPdfDocumentProps) {
               <View style={[styles.tableCol, styles.addressCol]}>
                 <Text>{item.pengelolaName}</Text>
               </View>
-              <View style={[styles.tableCol, styles.typeCol]}>
+              <View style={[styles.tableCol, styles.dateCol]}>
                 <Text>{item.createdDate}</Text>
               </View>
               <View style={[styles.tableCol, styles.verificationCol]}>
-                <Text>
-                  {item.status === "Verified"
-                    ? "Terverifikasi"
-                    : "Belum Terverifikasi"}
+                <Text
+                  style={
+                    item.status === "Verified"
+                      ? styles.statusVerified
+                      : styles.statusNotVerified
+                  }>
+                  {item.status === "Verified" ? "✓ Terverifikasi" : "✗ Belum"}
                 </Text>
               </View>
             </View>
           ))}
         </View>
 
-        {/* Footer with signature */}
+        {/* Footer */}
         <View style={styles.footer}>
-          <Text>{formattedDate}</Text>
-          <Text>Kepala Dinas</Text>
-          <View style={styles.signature}>
-            <Text style={styles.signatureName}>Sukoso, S.STP</Text>
-            <Text style={styles.signatureTitle}>NIP. 198104061999121001</Text>
+          <View style={styles.footerRight}>
+            <Text style={styles.dateText}>{formattedDate}</Text>
+            <View style={styles.signatureSection}>
+              <Text style={styles.signatureTitle}>Kepala Dinas</Text>
+              <Text style={styles.signatureName}>Sukoso, S.STP</Text>
+              <Text style={styles.signatureNip}>NIP. 198104061999121001</Text>
+            </View>
           </View>
         </View>
 
-        {/* Page Number */}
-        <Text style={styles.pageNumber}>Halaman 1</Text>
+        {/* Nomor Halaman */}
+        <Text
+          style={styles.pageNumber}
+          render={({ pageNumber }) => `Halaman ${pageNumber}`}
+          fixed
+        />
       </Page>
     </Document>
   );

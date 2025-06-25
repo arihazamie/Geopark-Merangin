@@ -15,62 +15,63 @@ enum Role {
 }
 
 
-model Admin {
-  id               Int       @id @default(autoincrement()) // ID unik untuk admin
-  name             String    // Nama admin
-  notelp           String    // Nomor telepon admin
-  email            String    @unique // Email admin (unik)
-  image            String    // URL gambar atau thumbnail admin    // URL gambar admin
-  role             Role      @default(ADMIN) // Peran admin, default: ADMIN
-  password         String    // Kata sandi admin (harus di-hash di aplikasi)
-  createdAt        DateTime  @default(now()) // Tanggal dan waktu pembuatan akun admin
-  updatedAt        DateTime  @updatedAt // Tanggal dan waktu terakhir admin diupdate
-  
-  // Relasi untuk data yang diupdate (diedit/hapus) oleh admin
-  updatedWisatas   Wisata[]  
-  updatedEvents    Event[]   
-  updatedUlasans   Ulasan[]  
-  updateArtikel    Artikel[] 
-  verifiedPengelola Pengelola[] 
-}
+  model Admin {
+    id               Int       @id @default(autoincrement()) // ID unik untuk admin
+    name             String    // Nama admin
+    notelp           String    // Nomor telepon admin
+    email            String    @unique // Email admin (unik)
+    image            String    // URL gambar atau thumbnail admin    // URL gambar admin
+    role             Role      @default(ADMIN) // Peran admin, default: ADMIN
+    password         String    // Kata sandi admin (harus di-hash di aplikasi)
+    createdAt        DateTime  @default(now()) // Tanggal dan waktu pembuatan akun admin
+    updatedAt        DateTime  @updatedAt // Tanggal dan waktu terakhir admin diupdate
+    
+    // Relasi untuk data yang diupdate (diedit/hapus) oleh admin
+    updatedWisatas   Wisata[]  
+    updatedEvents    Event[]   
+    updatedUlasans   Ulasan[]  
+    updateArtikel    Artikel[] 
+    verifiedPengelola Pengelola[] 
+  }
 
 
-model Pengelola {
-  id          Int      @id @default(autoincrement()) // ID unik untuk pengelola
-  name        String   // Nama pengelola
-  notelp      String   // Nomor telepon pengelola
-  email       String   @unique // Email pengelola (unik)
-  role        Role     @default(PENGELOLA) // Peran pengelola, default: PENGELOLA
-  image       String   // URL gambar atau thumbnail pengelola
-  password    String   // Kata sandi pengelola (harus di-hash di aplikasi)
-  isVerified  Boolean  @default(false) // Status verifikasi pengelola (false jika belum diverifikasi)
-  createdAt   DateTime @default(now()) // Tanggal dan waktu pembuatan akun pengelola
-  updatedAt   DateTime @updatedAt // Tanggal dan waktu terakhir data pengelola diupdate
-  
-  // Relasi untuk data yang dibuat atau diubah oleh pengelola
-  wisatas     Wisata[]  // Wisata yang dikelola
-  events      Event[]   // Event yang dikelola
-  artikel     Artikel[] // Artikel yang dikelola
+  model Pengelola {
+    id          Int      @id @default(autoincrement()) // ID unik untuk pengelola
+    name        String   // Nama pengelola
+    notelp      String   // Nomor telepon pengelola
+    email       String   @unique // Email pengelola (unik)
+    role        Role     @default(PENGELOLA) // Peran pengelola, default: PENGELOLA
+    image       String   // URL gambar atau thumbnail pengelola
+    password    String   // Kata sandi pengelola (harus di-hash di aplikasi)
+    isVerified  Boolean  @default(false) // Status verifikasi pengelola (false jika belum diverifikasi)
+    createdAt   DateTime @default(now()) // Tanggal dan waktu pembuatan akun pengelola
+    updatedAt   DateTime @updatedAt // Tanggal dan waktu terakhir data pengelola diupdate
+    
+    // Relasi untuk data yang dibuat atau diubah oleh pengelola
+    wisatas     Wisata[]  // Wisata yang dikelola
+    events      Event[]   // Event yang dikelola
+    artikel     Artikel[] // Artikel yang dikelola
 
-  // Relasi baru: Pengelola diverifikasi oleh Admin (opsional)
-  verifiedById Int?     // ID admin yang memverifikasi pengelola (opsional)
-  verifiedBy   Admin?   @relation(fields: [verifiedById], references: [id], onDelete: SetNull)
-}
+    // Relasi baru: Pengelola diverifikasi oleh Admin (opsional)
+    verifiedById Int?     // ID admin yang memverifikasi pengelola (opsional)
+    verifiedBy   Admin?   @relation(fields: [verifiedById], references: [id], onDelete: SetNull)
+  }
 
 
-model Pengguna {
-  id        Int       @id @default(autoincrement()) // ID unik untuk pengguna
-  name      String    // Nama pengguna
-  notelp    String    // Nomor telepon pengguna
-  email     String    @unique // Email pengguna (unik)
-  role      Role      @default(PENGGUNA) // Peran pengguna, default: PENGGUNA
-  image     String    // URL gambar atau thumbnail pengguna
-  password  String    // Kata sandi pengguna (harus di-hash di aplikasi)
-  createdAt DateTime  @default(now()) // Tanggal dan waktu pembuatan akun pengguna
-  updatedAt DateTime  @updatedAt // Tanggal dan waktu terakhir data pengguna diupdate
-  
-  ulasans   Ulasan[]  // Koleksi ulasan yang dibuat oleh pengguna
-}
+  model Pengguna {
+    id        Int       @id @default(autoincrement()) // ID unik untuk pengguna
+    name      String    // Nama pengguna
+    notelp    String    // Nomor telepon pengguna
+    email     String    @unique // Email pengguna (unik)
+    role      Role      @default(PENGGUNA) // Peran pengguna, default: PENGGUNA
+    image     String    // URL gambar atau thumbnail pengguna
+    password  String    // Kata sandi pengguna (harus di-hash di aplikasi)
+    resetToken     String?
+    createdAt DateTime  @default(now()) // Tanggal dan waktu pembuatan akun pengguna
+    updatedAt DateTime  @updatedAt // Tanggal dan waktu terakhir data pengguna diupdate
+    
+    ulasans   Ulasan[]  // Koleksi ulasan yang dibuat oleh pengguna
+  }
 
 
 model Wisata {
@@ -80,12 +81,14 @@ model Wisata {
   location     String    @db.VarChar(200) // Lokasi atau alamat destinasi wisata
   type         String?   @db.VarChar(50) // Tipe destinasi wisata (contoh: air terjun, museum, dll.)
   isVerified   Boolean   @default(false) // Status verifikasi destinasi wisata (false jika belum diverifikasi)
-  reviews      Int?      @default(0) // Jumlah review yang diterima destinasi wisata
   latitude     Float     @db.DoublePrecision // Koordinat lintang (latitude)
   longitude    Float     @db.DoublePrecision // Koordinat bujur (longitude)
   images       String[]  // Array URL gambar (gallery) dari destinasi wisata
   createdAt    DateTime  @default(now()) // Tanggal dan waktu pembuatan data wisata
   updatedAt    DateTime  @updatedAt // Tanggal dan waktu terakhir data wisata diupdate
+
+  //Ulasan
+
 
   // Data dibuat atau diubah oleh Pengelola
   pengelolaId  Int?      // ID pengelola yang membuat atau mengubah data (opsional)
