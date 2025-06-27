@@ -13,9 +13,17 @@ interface WisataData {
 
 interface TourismPdfDocumentProps {
   data: WisataData[];
+  title?: string;
+  dateFrom?: Date;
+  dateTo?: Date;
 }
 
-export function TourismPdfDocument({ data }: TourismPdfDocumentProps) {
+export function TourismPdfDocument({
+  data,
+  title = "LAPORAN DATA WISATA",
+  dateFrom,
+  dateTo,
+}: TourismPdfDocumentProps) {
   const getCurrentFormattedDate = () => {
     try {
       const currentDate = new Date();
@@ -32,6 +40,21 @@ export function TourismPdfDocument({ data }: TourismPdfDocumentProps) {
   };
 
   const formattedDate = getCurrentFormattedDate();
+
+  const formatDateRange = () => {
+    if (!dateFrom || !dateTo) return "";
+
+    const formatDate = (date: Date) => {
+      const day = date.getDate();
+      const month = monthNames[date.getMonth()];
+      const year = date.getFullYear();
+      return `${day} ${month} ${year}`;
+    };
+
+    return `Periode: ${formatDate(dateFrom)} - ${formatDate(dateTo)}`;
+  };
+
+  const dateRangeText = formatDateRange();
 
   return (
     <Document>
@@ -55,7 +78,12 @@ export function TourismPdfDocument({ data }: TourismPdfDocumentProps) {
         </View>
 
         {/* Judul Laporan */}
-        <Text style={styles.reportTitle}>LAPORAN DATA WISATA</Text>
+        <Text style={styles.reportTitle}>{title}</Text>
+
+        {/* Periode Tanggal - hanya tampil jika ada dateFrom dan dateTo */}
+        {dateRangeText && (
+          <Text style={styles.dateRangeText}>{dateRangeText}</Text>
+        )}
 
         {/* Tabel */}
         <View style={styles.table}>
@@ -67,10 +95,10 @@ export function TourismPdfDocument({ data }: TourismPdfDocumentProps) {
             <View style={[styles.tableColHeader, styles.nameCol]}>
               <Text>Nama Wisata</Text>
             </View>
-            <View style={[styles.tableColHeader, styles.addressCol]}>
+            <View style={[styles.tableColHeader, styles.typeCol]}>
               <Text>Tipe Wisata</Text>
             </View>
-            <View style={[styles.tableColHeader, styles.typeCol]}>
+            <View style={[styles.tableColHeader, styles.addressCol]}>
               <Text>Lokasi</Text>
             </View>
             <View style={[styles.tableColHeader, styles.verificationCol]}>

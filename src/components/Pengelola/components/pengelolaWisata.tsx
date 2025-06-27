@@ -1,7 +1,6 @@
 "use client";
 
 import { DialogTrigger } from "@/components/ui/dialog";
-
 import type React from "react";
 import { useState, useEffect, useRef } from "react";
 import {
@@ -16,7 +15,8 @@ import {
   Tag,
   Check,
   X,
-  Map,
+  Clock,
+  DollarSign,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
@@ -51,7 +51,6 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { LoadingCards } from "@/components/ui/loading-spinner";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Image from "next/image";
 import MapLocationPicker from "./map-location-picker";
 
@@ -69,6 +68,9 @@ interface Wisata {
   pengelolaId?: number;
   createdAt: string;
   updatedAt: string;
+  ticketPrice?: number;
+  openingTime?: string;
+  closingTime?: string;
 }
 
 interface DeleteConfirmationDialogProps {
@@ -138,17 +140,13 @@ export default function WisataPage() {
   );
   const [formError, setFormError] = useState<string | null>(null);
 
-  // New states for map picker
-  const [selectedLatitude, setSelectedLatitude] = useState<number>(0);
-  const [selectedLongitude, setSelectedLongitude] = useState<number>(0);
-  const [editSelectedLatitude, setEditSelectedLatitude] = useState<number>(0);
-  const [editSelectedLongitude, setEditSelectedLongitude] = useState<number>(0);
-  const [locationInputMethod, setLocationInputMethod] = useState<
-    "manual" | "map"
-  >("manual");
-  const [editLocationInputMethod, setEditLocationInputMethod] = useState<
-    "manual" | "map"
-  >("manual");
+  // Map picker states
+  const [selectedLatitude, setSelectedLatitude] = useState<number>(-6.2);
+  const [selectedLongitude, setSelectedLongitude] = useState<number>(106.816);
+  const [editSelectedLatitude, setEditSelectedLatitude] =
+    useState<number>(-6.2);
+  const [editSelectedLongitude, setEditSelectedLongitude] =
+    useState<number>(106.816);
 
   const addFormRef = useRef<HTMLFormElement>(null);
   const editFormRef = useRef<HTMLFormElement>(null);
@@ -184,42 +182,23 @@ export default function WisataPage() {
   const fetchWisata = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/wisata`);
+      const response = await fetch("/api/wisata");
 
       if (!response.ok) {
-        let errorMessage = `Server error: ${response.status} ${response.statusText}`;
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || errorMessage;
-        } catch (parseError) {
-          console.error("Error parsing error response:", parseError);
-        }
-        throw new Error(errorMessage);
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const result = await response.json();
 
-      // Check if the API returns data in the expected structure
       if (result.success && Array.isArray(result.data)) {
         setWisataData(result.data);
         setFilteredWisata(result.data);
-      } else if (Array.isArray(result)) {
-        // Fallback for direct array response
-        setWisataData(result);
-        setFilteredWisata(result);
       } else {
-        console.error("Unexpected API response format:", result);
-        setWisataData([]);
-        setFilteredWisata([]);
+        throw new Error("Invalid response format");
       }
     } catch (error) {
       console.error("Error fetching wisata:", error);
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Gagal memuat data wisata. Silakan coba lagi."
-      );
-      // Set empty arrays on error
+      toast.error("Gagal memuat data wisata. Silakan coba lagi.");
       setWisataData([]);
       setFilteredWisata([]);
     } finally {
@@ -235,7 +214,6 @@ export default function WisataPage() {
     if (!files || files.length === 0) return;
 
     const newPreviewUrls: string[] = [];
-
     Array.from(files).forEach((file) => {
       const url = URL.createObjectURL(file);
       newPreviewUrls.push(url);
@@ -258,6 +236,15 @@ export default function WisataPage() {
     }
   };
 
+  const formatPrice = (price: number | null | undefined) => {
+    if (!price || price === 0) return "Gratis";
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
+    }).format(price);
+  };
+
   const handleAddWisata = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -267,38 +254,9 @@ export default function WisataPage() {
     try {
       const formData = new FormData(e.currentTarget);
 
-      // Use coordinates from map picker if map method is selected
-      let latitude: number;
-      let longitude: number;
-
-      if (locationInputMethod === "map") {
-        latitude = selectedLatitude;
-        longitude = selectedLongitude;
-        // Update form data with selected coordinates
-        formData.set("latitude", selectedLatitude.toString());
-        formData.set("longitude", selectedLongitude.toString());
-      } else {
-        latitude = Number.parseFloat(
-          formData.get("latitude")?.toString() || "0"
-        );
-        longitude = Number.parseFloat(
-          formData.get("longitude")?.toString() || "0"
-        );
-      }
-
-      const name = formData.get("name")?.toString();
-      const description = formData.get("description")?.toString();
-      const location = formData.get("location")?.toString();
-
-      if (!name || !description || !location || !latitude || !longitude) {
-        throw new Error("Semua field wajib diisi");
-      }
-
-      if (latitude === 0 && longitude === 0) {
-        throw new Error(
-          "Silakan pilih lokasi pada peta atau masukkan koordinat manual"
-        );
-      }
+      // Set coordinates from map picker
+      formData.set("latitude", selectedLatitude.toString());
+      formData.set("longitude", selectedLongitude.toString());
 
       // Simulate progress
       const progressInterval = setInterval(() => {
@@ -308,7 +266,6 @@ export default function WisataPage() {
         });
       }, 500);
 
-      // Send data to API
       const response = await fetch("/api/wisata", {
         method: "POST",
         body: formData,
@@ -318,24 +275,15 @@ export default function WisataPage() {
       setUploadProgress(100);
 
       if (!response.ok) {
-        let errorMessage = `Server error: ${response.status} ${response.statusText}`;
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || errorMessage;
-        } catch (parseError) {
-          console.error("Error parsing error response:", parseError);
-        }
-        throw new Error(errorMessage);
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Gagal menambahkan wisata");
       }
 
-      // Success response - refresh the data from server
-      await fetchWisata();
-
+      await fetchWisata(); // Refresh data
       setOpenAddDialog(false);
       setPreviewImages([]);
-      setSelectedLatitude(0);
-      setSelectedLongitude(0);
-      setLocationInputMethod("manual");
+      setSelectedLatitude(-6.2);
+      setSelectedLongitude(106.816);
       if (addFormRef.current) addFormRef.current.reset();
       toast.success("Wisata berhasil ditambahkan");
     } catch (error) {
@@ -363,31 +311,9 @@ export default function WisataPage() {
     try {
       const formData = new FormData(e.currentTarget);
 
-      let latitude: number;
-      let longitude: number;
-
-      if (editLocationInputMethod === "map") {
-        latitude = editSelectedLatitude;
-        longitude = editSelectedLongitude;
-        // Update form data with selected coordinates
-        formData.set("latitude", editSelectedLatitude.toString());
-        formData.set("longitude", editSelectedLongitude.toString());
-      } else {
-        latitude = Number.parseFloat(
-          formData.get("latitude")?.toString() || "0"
-        );
-        longitude = Number.parseFloat(
-          formData.get("longitude")?.toString() || "0"
-        );
-      }
-
-      const name = formData.get("name") as string;
-      const description = formData.get("description") as string;
-      const location = formData.get("location") as string;
-
-      if (!name || !description || !location || !latitude || !longitude) {
-        throw new Error("Semua field wajib diisi");
-      }
+      // Set coordinates from map picker
+      formData.set("latitude", editSelectedLatitude.toString());
+      formData.set("longitude", editSelectedLongitude.toString());
 
       // Simulate progress
       const progressInterval = setInterval(() => {
@@ -406,37 +332,22 @@ export default function WisataPage() {
       setUploadProgress(100);
 
       if (!response.ok) {
-        let errorMessage = `Server error: ${response.status} ${response.statusText}`;
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || errorMessage;
-        } catch (parseError) {
-          console.error("Error parsing error response:", parseError);
-        }
-        throw new Error(errorMessage);
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Gagal memperbarui wisata");
       }
 
-      // Success response - refresh the data from server
-      await fetchWisata();
-
+      await fetchWisata(); // Refresh data
       setOpenEditDialog(false);
       setEditPreviewImages([]);
-      setEditSelectedLatitude(0);
-      setEditSelectedLongitude(0);
-      setEditLocationInputMethod("manual");
       toast.success("Wisata berhasil diperbarui");
     } catch (error) {
       console.error("Error updating wisata:", error);
-      setFormError(
+      const message =
         error instanceof Error
           ? error.message
-          : "Gagal memperbarui wisata. Silakan coba lagi."
-      );
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Gagal memperbarui wisata. Silakan coba lagi."
-      );
+          : "Gagal memperbarui wisata. Silakan coba lagi.";
+      setFormError(message);
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
       setUploadProgress(0);
@@ -457,26 +368,19 @@ export default function WisataPage() {
       });
 
       if (!response.ok) {
-        let errorMessage = `Server error: ${response.status} ${response.statusText}`;
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || errorMessage;
-        } catch (parseError) {
-          console.error("Error parsing error response:", parseError);
-        }
-        throw new Error(errorMessage);
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Gagal menghapus wisata");
       }
 
-      // Refresh data from server after successful deletion
-      await fetchWisata();
+      await fetchWisata(); // Refresh data
       toast.success("Wisata berhasil dihapus");
     } catch (error) {
       console.error("Error deleting wisata:", error);
-      toast.error(
+      const message =
         error instanceof Error
           ? error.message
-          : "Gagal menghapus wisata. Silakan coba lagi."
-      );
+          : "Gagal menghapus wisata. Silakan coba lagi.";
+      toast.error(message);
     } finally {
       setOpenDeleteDialog(false);
       setWisataToDelete(null);
@@ -549,206 +453,252 @@ export default function WisataPage() {
                 Tambah Wisata
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-[1000px] max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Tambah Wisata Baru</DialogTitle>
+                <DialogTitle className="text-xl font-semibold">
+                  Tambah Wisata Baru
+                </DialogTitle>
                 <DialogDescription>
                   Masukkan informasi lengkap tentang destinasi wisata baru.
                 </DialogDescription>
               </DialogHeader>
+
               <form
                 ref={addFormRef}
                 onSubmit={handleAddWisata}>
-                <div className="grid gap-4 py-4">
-                  <div className="grid items-center grid-cols-4 gap-4">
-                    <Label
-                      htmlFor="name"
-                      className="text-right">
-                      Nama
-                    </Label>
-                    <Input
-                      id="name"
-                      name="name"
-                      placeholder="Nama wisata"
-                      className="col-span-3"
-                      maxLength={100}
-                      required
-                    />
-                  </div>
-                  <div className="grid items-center grid-cols-4 gap-4">
-                    <Label
-                      htmlFor="description"
-                      className="text-right">
-                      Deskripsi
-                    </Label>
-                    <Textarea
-                      id="description"
-                      name="description"
-                      placeholder="Deskripsi wisata"
-                      className="col-span-3"
-                      required
-                    />
-                  </div>
-                  <div className="grid items-center grid-cols-4 gap-4">
-                    <Label
-                      htmlFor="location"
-                      className="text-right">
-                      Lokasi
-                    </Label>
-                    <Input
-                      id="location"
-                      name="location"
-                      placeholder="Lokasi wisata"
-                      className="col-span-3"
-                      maxLength={200}
-                      required
-                    />
-                  </div>
-                  <div className="grid items-center grid-cols-4 gap-4">
-                    <Label
-                      htmlFor="type"
-                      className="text-right">
-                      Tipe
-                    </Label>
-                    <Select name="type">
-                      <SelectTrigger className="col-span-3">
-                        <SelectValue placeholder="Pilih tipe wisata" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="geologi">Geologi</SelectItem>
-                        <SelectItem value="biologi">Biologi</SelectItem>
-                        <SelectItem value="budaya">Budaya</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div className="grid grid-cols-1 gap-8 py-6 lg:grid-cols-2">
+                  {/* Left Column - Form Fields */}
+                  <div className="space-y-6">
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label
+                          htmlFor="name"
+                          className="text-sm font-medium">
+                          Nama Wisata
+                        </Label>
+                        <Input
+                          id="name"
+                          name="name"
+                          placeholder="Nama Wisata"
+                          className="w-full"
+                          maxLength={100}
+                          required
+                        />
+                      </div>
 
-                  {/* Location Input Method Selection */}
-                  <div className="grid items-start grid-cols-4 gap-4">
-                    <Label className="pt-2 text-right">Koordinat</Label>
-                    <div className="col-span-3 space-y-4">
-                      <Tabs
-                        value={locationInputMethod}
-                        onValueChange={(value) =>
-                          setLocationInputMethod(value as "manual" | "map")
-                        }>
-                        <TabsList className="grid w-full grid-cols-2">
-                          <TabsTrigger
-                            value="manual"
-                            className="flex items-center gap-2">
-                            <MapPin className="w-4 h-4" />
-                            Input Manual
-                          </TabsTrigger>
-                          <TabsTrigger
-                            value="map"
-                            className="flex items-center gap-2">
-                            <Map className="w-4 h-4" />
-                            Pilih di Peta
-                          </TabsTrigger>
-                        </TabsList>
+                      <div className="space-y-2">
+                        <Label
+                          htmlFor="description"
+                          className="text-sm font-medium">
+                          Deskripsi
+                        </Label>
+                        <Textarea
+                          id="description"
+                          name="description"
+                          placeholder="Deskripsi Wisata"
+                          className="w-full min-h-[80px]"
+                          required
+                        />
+                      </div>
 
-                        <TabsContent
-                          value="manual"
-                          className="space-y-3">
-                          <div className="grid grid-cols-2 gap-3">
-                            <div>
-                              <Label htmlFor="latitude">Latitude</Label>
-                              <Input
-                                id="latitude"
-                                name="latitude"
-                                type="number"
-                                step="any"
-                                placeholder="Latitude"
-                                required={locationInputMethod === "manual"}
-                              />
-                            </div>
-                            <div>
-                              <Label htmlFor="longitude">Longitude</Label>
-                              <Input
-                                id="longitude"
-                                name="longitude"
-                                type="number"
-                                step="any"
-                                placeholder="Longitude"
-                                required={locationInputMethod === "manual"}
-                              />
-                            </div>
+                      <div className="space-y-2">
+                        <Label
+                          htmlFor="location"
+                          className="text-sm font-medium">
+                          Lokasi
+                        </Label>
+                        <Input
+                          id="location"
+                          name="location"
+                          placeholder="Lokasi"
+                          className="w-full"
+                          maxLength={200}
+                          required
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label
+                          htmlFor="type"
+                          className="text-sm font-medium">
+                          Tipe
+                        </Label>
+                        <Select name="type">
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Tipe Wisata" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Geologi">Geologi</SelectItem>
+                            <SelectItem value="Biologi">Biologi</SelectItem>
+                            <SelectItem value="Budaya">Budaya</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">Koordinat</Label>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label
+                              htmlFor="latitude"
+                              className="text-xs text-muted-foreground">
+                              Lattitude
+                            </Label>
+                            <Input
+                              id="latitude"
+                              name="latitude"
+                              type="number"
+                              step="any"
+                              placeholder="String"
+                              value={selectedLatitude}
+                              onChange={(e) =>
+                                setSelectedLatitude(
+                                  Number.parseFloat(e.target.value) || 0
+                                )
+                              }
+                              required
+                            />
                           </div>
-                        </TabsContent>
+                          <div>
+                            <Label
+                              htmlFor="longitude"
+                              className="text-xs text-muted-foreground">
+                              Longitude
+                            </Label>
+                            <Input
+                              id="longitude"
+                              name="longitude"
+                              type="number"
+                              step="any"
+                              placeholder="String"
+                              value={selectedLongitude}
+                              onChange={(e) =>
+                                setSelectedLongitude(
+                                  Number.parseFloat(e.target.value) || 0
+                                )
+                              }
+                              required
+                            />
+                          </div>
+                        </div>
+                      </div>
 
-                        <TabsContent value="map">
-                          <MapLocationPicker
-                            onLocationSelect={(lat, lng) =>
-                              handleLocationSelect(lat, lng, false)
-                            }
-                            height="300px"
-                          />
-                          {/* Hidden inputs to store map coordinates */}
-                          <input
-                            type="hidden"
-                            name="latitude"
-                            value={selectedLatitude || ""}
-                          />
-                          <input
-                            type="hidden"
-                            name="longitude"
-                            value={selectedLongitude || ""}
-                          />
-                        </TabsContent>
-                      </Tabs>
-                    </div>
-                  </div>
+                      <div className="space-y-2">
+                        <Label
+                          htmlFor="ticketPrice"
+                          className="text-sm font-medium">
+                          Harga Tiket (Rp)
+                        </Label>
+                        <Input
+                          id="ticketPrice"
+                          name="ticketPrice"
+                          type="number"
+                          min="0"
+                          step="1000"
+                          placeholder="0 (kosongkan jika gratis)"
+                          className="w-full"
+                        />
+                      </div>
 
-                  <div className="grid items-start grid-cols-4 gap-4">
-                    <Label
-                      htmlFor="images"
-                      className="pt-2 text-right">
-                      Gambar
-                    </Label>
-                    <div className="col-span-3 space-y-3">
-                      <div className="flex items-center gap-2">
-                        <div className="relative w-full p-2 border rounded-md">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label
+                            htmlFor="openingTime"
+                            className="text-sm font-medium">
+                            Jam Buka
+                          </Label>
+                          <Input
+                            id="openingTime"
+                            name="openingTime"
+                            type="time"
+                            className="w-full"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label
+                            htmlFor="closingTime"
+                            className="text-sm font-medium">
+                            Jam Tutup
+                          </Label>
+                          <Input
+                            id="closingTime"
+                            name="closingTime"
+                            type="time"
+                            className="w-full"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label
+                          htmlFor="images"
+                          className="text-sm font-medium">
+                          Gambar
+                        </Label>
+                        <div className="relative p-4 transition-colors border-2 border-gray-300 border-dashed rounded-lg hover:border-gray-400">
                           <Input
                             id="images"
                             name="images"
                             type="file"
                             multiple
                             accept="image/*"
-                            className="absolute inset-0 z-10 w-full opacity-0 cursor-pointer"
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                             onChange={(e) => handleImageChange(e)}
                             required
                           />
-                          <div className="flex items-center justify-center gap-2 text-muted-foreground">
-                            <Upload className="w-4 h-4" />
-                            <span>Pilih gambar atau seret ke sini</span>
+                          <div className="text-center">
+                            <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                            <p className="text-sm text-gray-600">
+                              Pilih Gambar
+                            </p>
                           </div>
                         </div>
-                      </div>
 
-                      {previewImages.length > 0 && (
-                        <div className="grid grid-cols-3 gap-2">
-                          {previewImages.map((url, index) => (
-                            <div
-                              key={index}
-                              className="relative overflow-hidden border rounded-md aspect-square">
-                              <Image
-                                src={url || "/placeholder.svg"}
-                                alt={`Preview ${index + 1}`}
-                                width={150}
-                                height={150}
-                                className="object-cover w-full h-full"
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                        {previewImages.length > 0 && (
+                          <div className="grid grid-cols-3 gap-2 mt-3">
+                            {previewImages.map((url, index) => (
+                              <div
+                                key={index}
+                                className="relative overflow-hidden border rounded-md aspect-square">
+                                <Image
+                                  src={url || "/placeholder.svg"}
+                                  alt={`Preview ${index + 1}`}
+                                  width={100}
+                                  height={100}
+                                  className="object-cover w-full h-full"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Column - Map */}
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">
+                        Pilih koordinat pada Maps
+                      </Label>
+                      <MapLocationPicker
+                        onLocationSelect={(lat, lng) =>
+                          handleLocationSelect(lat, lng, false)
+                        }
+                        initialLat={selectedLatitude}
+                        initialLng={selectedLongitude}
+                        height="400px"
+                      />
                     </div>
                   </div>
                 </div>
+
                 {formError && (
                   <div className="p-3 mb-4 text-sm text-red-600 border border-red-200 rounded-md bg-red-50">
                     {formError}
                   </div>
                 )}
+
                 {isSubmitting && (
                   <div className="mb-4">
                     <Label className="mb-1.5 block">Mengunggah...</Label>
@@ -758,7 +708,8 @@ export default function WisataPage() {
                     />
                   </div>
                 )}
-                <DialogFooter>
+
+                <DialogFooter className="flex gap-3">
                   <Button
                     variant="outline"
                     type="button"
@@ -766,17 +717,18 @@ export default function WisataPage() {
                       setOpenAddDialog(false);
                       setFormError(null);
                       setPreviewImages([]);
-                      setSelectedLatitude(0);
-                      setSelectedLongitude(0);
-                      setLocationInputMethod("manual");
+                      setSelectedLatitude(-6.2);
+                      setSelectedLongitude(106.816);
                       if (addFormRef.current) addFormRef.current.reset();
                     }}
-                    disabled={isSubmitting}>
+                    disabled={isSubmitting}
+                    className="px-8">
                     Batal
                   </Button>
                   <Button
                     type="submit"
-                    disabled={isSubmitting}>
+                    disabled={isSubmitting}
+                    className="px-8 bg-blue-600 hover:bg-blue-700">
                     {isSubmitting ? "Menyimpan..." : "Simpan"}
                   </Button>
                 </DialogFooter>
@@ -893,6 +845,19 @@ export default function WisataPage() {
                           {wisata.type}
                         </span>
                       )}
+                      {wisata.ticketPrice !== undefined && (
+                        <span className="flex items-center text-green-600">
+                          <DollarSign className="w-3.5 h-3.5 mr-1" />
+                          {formatPrice(wisata.ticketPrice)}
+                        </span>
+                      )}
+                      {(wisata.openingTime || wisata.closingTime) && (
+                        <span className="flex items-center text-blue-600">
+                          <Clock className="w-3.5 h-3.5 mr-1" />
+                          {wisata.openingTime || "00:00"} -{" "}
+                          {wisata.closingTime || "24:00"}
+                        </span>
+                      )}
                       {wisata.reviews > 0 && (
                         <span className="flex items-center">
                           <Star className="w-3.5 h-3.5 mr-1 text-yellow-500" />
@@ -939,13 +904,15 @@ export default function WisataPage() {
         </div>
       </Card>
 
-      {/* Edit Dialog */}
+      {/* Edit Dialog - Similar structure to Add Dialog */}
       <Dialog
         open={openEditDialog}
         onOpenChange={setOpenEditDialog}>
-        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[1000px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit Wisata</DialogTitle>
+            <DialogTitle className="text-xl font-semibold">
+              Edit Wisata
+            </DialogTitle>
             <DialogDescription>
               Ubah informasi destinasi wisata.
             </DialogDescription>
@@ -954,218 +921,258 @@ export default function WisataPage() {
             <form
               ref={editFormRef}
               onSubmit={handleEditWisata}>
-              <div className="grid gap-4 py-4">
-                <div className="grid items-center grid-cols-4 gap-4">
-                  <Label
-                    htmlFor="edit-name"
-                    className="text-right">
-                    Nama
-                  </Label>
-                  <Input
-                    id="edit-name"
-                    name="name"
-                    defaultValue={selectedWisata.name}
-                    className="col-span-3"
-                    maxLength={100}
-                    required
-                  />
-                </div>
-                <div className="grid items-center grid-cols-4 gap-4">
-                  <Label
-                    htmlFor="edit-description"
-                    className="text-right">
-                    Deskripsi
-                  </Label>
-                  <Textarea
-                    id="edit-description"
-                    name="description"
-                    defaultValue={selectedWisata.description}
-                    className="col-span-3"
-                    required
-                  />
-                </div>
-                <div className="grid items-center grid-cols-4 gap-4">
-                  <Label
-                    htmlFor="edit-location"
-                    className="text-right">
-                    Lokasi
-                  </Label>
-                  <Input
-                    id="edit-location"
-                    name="location"
-                    defaultValue={selectedWisata.location}
-                    className="col-span-3"
-                    maxLength={200}
-                    required
-                  />
-                </div>
-                <div className="grid items-center grid-cols-4 gap-4">
-                  <Label
-                    htmlFor="edit-type"
-                    className="text-right">
-                    Tipe
-                  </Label>
-                  <Select
-                    name="type"
-                    defaultValue={selectedWisata.type || undefined}>
-                    <SelectTrigger className="col-span-3">
-                      <SelectValue placeholder="Pilih tipe wisata" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="geologi">Geologi</SelectItem>
-                      <SelectItem value="biologi">Biologi</SelectItem>
-                      <SelectItem value="budaya">Budaya</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Edit Location Input Method Selection */}
-                <div className="grid items-start grid-cols-4 gap-4">
-                  <Label className="pt-2 text-right">Koordinat</Label>
-                  <div className="col-span-3 space-y-4">
-                    <Tabs
-                      value={editLocationInputMethod}
-                      onValueChange={(value) =>
-                        setEditLocationInputMethod(value as "manual" | "map")
-                      }>
-                      <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger
-                          value="manual"
-                          className="flex items-center gap-2">
-                          <MapPin className="w-4 h-4" />
-                          Input Manual
-                        </TabsTrigger>
-                        <TabsTrigger
-                          value="map"
-                          className="flex items-center gap-2">
-                          <Map className="w-4 h-4" />
-                          Pilih di Peta
-                        </TabsTrigger>
-                      </TabsList>
-
-                      <TabsContent
-                        value="manual"
-                        className="space-y-3">
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <Label htmlFor="edit-latitude">Latitude</Label>
-                            <Input
-                              id="edit-latitude"
-                              name="latitude"
-                              type="number"
-                              step="any"
-                              defaultValue={selectedWisata.latitude}
-                              required={editLocationInputMethod === "manual"}
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="edit-longitude">Longitude</Label>
-                            <Input
-                              id="edit-longitude"
-                              name="longitude"
-                              type="number"
-                              step="any"
-                              defaultValue={selectedWisata.longitude}
-                              required={editLocationInputMethod === "manual"}
-                            />
-                          </div>
-                        </div>
-                      </TabsContent>
-
-                      <TabsContent value="map">
-                        <MapLocationPicker
-                          onLocationSelect={(lat, lng) =>
-                            handleLocationSelect(lat, lng, true)
-                          }
-                          initialLat={selectedWisata.latitude}
-                          initialLng={selectedWisata.longitude}
-                          height="300px"
-                        />
-                        {/* Hidden inputs to store map coordinates */}
-                        <input
-                          type="hidden"
-                          name="latitude"
-                          value={
-                            editSelectedLatitude || selectedWisata.latitude
-                          }
-                        />
-                        <input
-                          type="hidden"
-                          name="longitude"
-                          value={
-                            editSelectedLongitude || selectedWisata.longitude
-                          }
-                        />
-                      </TabsContent>
-                    </Tabs>
-                  </div>
-                </div>
-
-                <div className="grid items-start grid-cols-4 gap-4">
-                  <Label
-                    htmlFor="edit-images"
-                    className="pt-2 text-right">
-                    Gambar
-                  </Label>
-                  <div className="col-span-3 space-y-3">
-                    {selectedWisata.images &&
-                      selectedWisata.images.length > 0 && (
-                        <div className="flex gap-2 mb-2">
-                          {selectedWisata.images.map((image, index) => (
-                            <Avatar
-                              key={index}
-                              className="w-12 h-12">
-                              <AvatarImage
-                                src={image || "/placeholder.svg"}
-                                alt={`Wisata image ${index + 1}`}
-                              />
-                              <AvatarFallback>IMG</AvatarFallback>
-                            </Avatar>
-                          ))}
-                        </div>
-                      )}
-
-                    <div className="relative w-full p-2 border rounded-md">
+              <div className="grid grid-cols-1 gap-8 py-6 lg:grid-cols-2">
+                {/* Left Column - Form Fields */}
+                <div className="space-y-6">
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="edit-name"
+                        className="text-sm font-medium">
+                        Nama Wisata
+                      </Label>
                       <Input
-                        id="edit-images"
-                        name="images"
-                        type="file"
-                        multiple
-                        accept="image/*"
-                        className="absolute inset-0 z-10 w-full opacity-0 cursor-pointer"
-                        onChange={(e) => handleImageChange(e, true)}
+                        id="edit-name"
+                        name="name"
+                        defaultValue={selectedWisata.name}
+                        className="w-full"
+                        maxLength={100}
+                        required
                       />
-                      <div className="flex items-center justify-center gap-2 text-muted-foreground">
-                        <Upload className="w-4 h-4" />
-                        <span>Pilih gambar baru atau seret ke sini</span>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="edit-description"
+                        className="text-sm font-medium">
+                        Deskripsi
+                      </Label>
+                      <Textarea
+                        id="edit-description"
+                        name="description"
+                        defaultValue={selectedWisata.description}
+                        className="w-full min-h-[80px]"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="edit-location"
+                        className="text-sm font-medium">
+                        Lokasi
+                      </Label>
+                      <Input
+                        id="edit-location"
+                        name="location"
+                        defaultValue={selectedWisata.location}
+                        className="w-full"
+                        maxLength={200}
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="edit-type"
+                        className="text-sm font-medium">
+                        Tipe
+                      </Label>
+                      <Select
+                        name="type"
+                        defaultValue={selectedWisata.type || undefined}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Pilih tipe wisata" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="geologi">Geologi</SelectItem>
+                          <SelectItem value="biologi">Biologi</SelectItem>
+                          <SelectItem value="budaya">Budaya</SelectItem>
+                          <SelectItem value="pantai">Pantai</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Koordinat</Label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label
+                            htmlFor="edit-latitude"
+                            className="text-xs text-muted-foreground">
+                            Lattitude
+                          </Label>
+                          <Input
+                            id="edit-latitude"
+                            name="latitude"
+                            type="number"
+                            step="any"
+                            value={editSelectedLatitude}
+                            onChange={(e) =>
+                              setEditSelectedLatitude(
+                                Number.parseFloat(e.target.value) || 0
+                              )
+                            }
+                            required
+                          />
+                        </div>
+                        <div>
+                          <Label
+                            htmlFor="edit-longitude"
+                            className="text-xs text-muted-foreground">
+                            Longitude
+                          </Label>
+                          <Input
+                            id="edit-longitude"
+                            name="longitude"
+                            type="number"
+                            step="any"
+                            value={editSelectedLongitude}
+                            onChange={(e) =>
+                              setEditSelectedLongitude(
+                                Number.parseFloat(e.target.value) || 0
+                              )
+                            }
+                            required
+                          />
+                        </div>
                       </div>
                     </div>
 
-                    {editPreviewImages.length > 0 && (
-                      <div className="grid grid-cols-3 gap-2">
-                        {editPreviewImages.map((url, index) => (
-                          <div
-                            key={index}
-                            className="relative overflow-hidden border rounded-md aspect-square">
-                            <Image
-                              src={url || "/placeholder.svg"}
-                              alt={`Preview ${index + 1}`}
-                              width={150}
-                              height={150}
-                              className="object-cover w-full h-full"
-                            />
-                          </div>
-                        ))}
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="edit-ticketPrice"
+                        className="text-sm font-medium">
+                        Harga Tiket (Rp)
+                      </Label>
+                      <Input
+                        id="edit-ticketPrice"
+                        name="ticketPrice"
+                        type="number"
+                        min="0"
+                        step="1000"
+                        defaultValue={selectedWisata.ticketPrice || ""}
+                        className="w-full"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <Label
+                          htmlFor="edit-openingTime"
+                          className="text-sm font-medium">
+                          Jam Buka
+                        </Label>
+                        <Input
+                          id="edit-openingTime"
+                          name="openingTime"
+                          type="time"
+                          defaultValue={selectedWisata.openingTime || ""}
+                          className="w-full"
+                        />
                       </div>
-                    )}
+                      <div className="space-y-2">
+                        <Label
+                          htmlFor="edit-closingTime"
+                          className="text-sm font-medium">
+                          Jam Tutup
+                        </Label>
+                        <Input
+                          id="edit-closingTime"
+                          name="closingTime"
+                          type="time"
+                          defaultValue={selectedWisata.closingTime || ""}
+                          className="w-full"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="edit-images"
+                        className="text-sm font-medium">
+                        Gambar
+                      </Label>
+                      {selectedWisata.images &&
+                        selectedWisata.images.length > 0 && (
+                          <div className="flex gap-2 mb-2">
+                            {selectedWisata.images.map((image, index) => (
+                              <Avatar
+                                key={index}
+                                className="w-12 h-12">
+                                <AvatarImage
+                                  src={image || "/placeholder.svg"}
+                                  alt={`Wisata image ${index + 1}`}
+                                />
+                                <AvatarFallback>IMG</AvatarFallback>
+                              </Avatar>
+                            ))}
+                          </div>
+                        )}
+
+                      <div className="relative p-4 transition-colors border-2 border-gray-300 border-dashed rounded-lg hover:border-gray-400">
+                        <Input
+                          id="edit-images"
+                          name="images"
+                          type="file"
+                          multiple
+                          accept="image/*"
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                          onChange={(e) => handleImageChange(e, true)}
+                        />
+                        <div className="text-center">
+                          <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                          <p className="text-sm text-gray-600">
+                            Pilih gambar baru atau seret ke sini
+                          </p>
+                        </div>
+                      </div>
+
+                      {editPreviewImages.length > 0 && (
+                        <div className="grid grid-cols-3 gap-2 mt-3">
+                          {editPreviewImages.map((url, index) => (
+                            <div
+                              key={index}
+                              className="relative overflow-hidden border rounded-md aspect-square">
+                              <Image
+                                src={url || "/placeholder.svg"}
+                                alt={`Preview ${index + 1}`}
+                                width={100}
+                                height={100}
+                                className="object-cover w-full h-full"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Column - Map */}
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">
+                      Pilih koordinat pada Maps
+                    </Label>
+                    <MapLocationPicker
+                      onLocationSelect={(lat, lng) =>
+                        handleLocationSelect(lat, lng, true)
+                      }
+                      initialLat={editSelectedLatitude}
+                      initialLng={editSelectedLongitude}
+                      height="400px"
+                    />
                   </div>
                 </div>
               </div>
+
               {formError && (
                 <div className="p-3 mb-4 text-sm text-red-600 border border-red-200 rounded-md bg-red-50">
                   {formError}
                 </div>
               )}
+
               {isSubmitting && (
                 <div className="mb-4">
                   <Label className="mb-1.5 block">Mengunggah...</Label>
@@ -1175,7 +1182,8 @@ export default function WisataPage() {
                   />
                 </div>
               )}
-              <DialogFooter>
+
+              <DialogFooter className="flex gap-3">
                 <Button
                   variant="outline"
                   type="button"
@@ -1183,16 +1191,17 @@ export default function WisataPage() {
                     setOpenEditDialog(false);
                     setFormError(null);
                     setEditPreviewImages([]);
-                    setEditSelectedLatitude(0);
-                    setEditSelectedLongitude(0);
-                    setEditLocationInputMethod("manual");
+                    setEditSelectedLatitude(-6.2);
+                    setEditSelectedLongitude(106.816);
                   }}
-                  disabled={isSubmitting}>
+                  disabled={isSubmitting}
+                  className="px-8">
                   Batal
                 </Button>
                 <Button
                   type="submit"
-                  disabled={isSubmitting}>
+                  disabled={isSubmitting}
+                  className="px-8 bg-blue-600 hover:bg-blue-700">
                   {isSubmitting ? "Menyimpan..." : "Simpan Perubahan"}
                 </Button>
               </DialogFooter>

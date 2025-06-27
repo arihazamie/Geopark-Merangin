@@ -87,8 +87,10 @@ model Wisata {
   createdAt    DateTime  @default(now()) // Tanggal dan waktu pembuatan data wisata
   updatedAt    DateTime  @updatedAt // Tanggal dan waktu terakhir data wisata diupdate
 
-  //Ulasan
-
+    // Informasi harga dan jam operasional
+  ticketPrice  Decimal?  @db.Decimal(10,2) // Harga tiket masuk (opsional, null jika gratis)
+  openingTime  String?   @db.VarChar(5) // Jam buka (format HH:MM, contoh: "08:00")
+  closingTime  String?   @db.VarChar(5) // Jam tutup (format HH:MM, contoh: "17:00")
 
   // Data dibuat atau diubah oleh Pengelola
   pengelolaId  Int?      // ID pengelola yang membuat atau mengubah data (opsional)

@@ -14,8 +14,9 @@ import {
   Tag,
   Check,
   X,
-  Loader,
   Map,
+  Clock,
+  DollarSign,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
@@ -53,7 +54,6 @@ import { Progress } from "@/components/ui/progress";
 import { WisataPdfButton } from "../export/wisata/Button";
 import { LoadingCards } from "@/components/ui/loading-spinner";
 import Image from "next/image";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import MapLocationPicker from "@/components/Pengelola/components/map-location-picker";
 
 interface Wisata {
@@ -70,6 +70,9 @@ interface Wisata {
   pengelolaId?: number;
   createdAt: string;
   updatedAt: string;
+  ticketPrice?: number;
+  openingTime?: string;
+  closingTime?: string;
 }
 
 interface DeleteConfirmationDialogProps {
@@ -248,6 +251,7 @@ export default function WisataPage() {
       setPreviewImages(newPreviewUrls);
     }
   };
+
   const handleLocationSelect = (lat: number, lng: number, isEdit = false) => {
     if (isEdit) {
       setEditSelectedLatitude(lat);
@@ -256,6 +260,15 @@ export default function WisataPage() {
       setSelectedLatitude(lat);
       setSelectedLongitude(lng);
     }
+  };
+
+  const formatPrice = (price: number | null | undefined) => {
+    if (!price || price === 0) return "Gratis";
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
+    }).format(price);
   };
 
   const handleAddWisata = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -298,6 +311,18 @@ export default function WisataPage() {
         throw new Error(
           "Silakan pilih lokasi pada peta atau masukkan koordinat manual"
         );
+      }
+
+      // Validate time format if provided
+      const openingTime = formData.get("openingTime")?.toString();
+      const closingTime = formData.get("closingTime")?.toString();
+      const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+
+      if (openingTime && !timeRegex.test(openingTime)) {
+        throw new Error("Format jam buka tidak valid (gunakan HH:MM)");
+      }
+      if (closingTime && !timeRegex.test(closingTime)) {
+        throw new Error("Format jam tutup tidak valid (gunakan HH:MM)");
       }
 
       // Simulate progress
@@ -374,6 +399,18 @@ export default function WisataPage() {
         throw new Error("Semua field wajib diisi");
       }
 
+      // Validate time format if provided
+      const openingTime = formData.get("openingTime")?.toString();
+      const closingTime = formData.get("closingTime")?.toString();
+      const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+
+      if (openingTime && !timeRegex.test(openingTime)) {
+        throw new Error("Format jam buka tidak valid (gunakan HH:MM)");
+      }
+      if (closingTime && !timeRegex.test(closingTime)) {
+        throw new Error("Format jam tutup tidak valid (gunakan HH:MM)");
+      }
+
       // Simulate progress for better UX
       const progressInterval = setInterval(() => {
         setUploadProgress((prev) => {
@@ -382,10 +419,13 @@ export default function WisataPage() {
         });
       }, 500);
 
-      const response = await fetch(`/api/wisata?id=${selectedWisata.id}`, {
-        method: "PUT",
-        body: formData,
-      });
+      const response = await fetch(
+        `/api/admin/wisata?id=${selectedWisata.id}`,
+        {
+          method: "PUT",
+          body: formData,
+        }
+      );
 
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -530,6 +570,7 @@ export default function WisataPage() {
       );
     }
   };
+
   const getVerifiedCount = () => {
     return wisataData.filter((wisata) => wisata.isVerified).length;
   };
@@ -588,206 +629,252 @@ export default function WisataPage() {
                 Tambah Wisata
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-[1000px] max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Tambah Wisata Baru</DialogTitle>
+                <DialogTitle className="text-xl font-semibold">
+                  Tambah Wisata Baru
+                </DialogTitle>
                 <DialogDescription>
                   Masukkan informasi lengkap tentang destinasi wisata baru.
                 </DialogDescription>
               </DialogHeader>
+
               <form
                 ref={addFormRef}
                 onSubmit={handleAddWisata}>
-                <div className="grid gap-4 py-4">
-                  <div className="grid items-center grid-cols-4 gap-4">
-                    <Label
-                      htmlFor="name"
-                      className="text-right">
-                      Nama
-                    </Label>
-                    <Input
-                      id="name"
-                      name="name"
-                      placeholder="Nama wisata"
-                      className="col-span-3"
-                      maxLength={100}
-                      required
-                    />
-                  </div>
-                  <div className="grid items-center grid-cols-4 gap-4">
-                    <Label
-                      htmlFor="description"
-                      className="text-right">
-                      Deskripsi
-                    </Label>
-                    <Textarea
-                      id="description"
-                      name="description"
-                      placeholder="Deskripsi wisata"
-                      className="col-span-3"
-                      required
-                    />
-                  </div>
-                  <div className="grid items-center grid-cols-4 gap-4">
-                    <Label
-                      htmlFor="location"
-                      className="text-right">
-                      Lokasi
-                    </Label>
-                    <Input
-                      id="location"
-                      name="location"
-                      placeholder="Lokasi wisata"
-                      className="col-span-3"
-                      maxLength={200}
-                      required
-                    />
-                  </div>
-                  <div className="grid items-center grid-cols-4 gap-4">
-                    <Label
-                      htmlFor="type"
-                      className="text-right">
-                      Tipe
-                    </Label>
-                    <Select name="type">
-                      <SelectTrigger className="col-span-3">
-                        <SelectValue placeholder="Pilih tipe wisata" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="geologi">Geologi</SelectItem>
-                        <SelectItem value="biologi">Biologi</SelectItem>
-                        <SelectItem value="budaya">Budaya</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div className="grid grid-cols-1 gap-8 py-6 lg:grid-cols-2">
+                  {/* Left Column - Form Fields */}
+                  <div className="space-y-6">
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label
+                          htmlFor="name"
+                          className="text-sm font-medium">
+                          Nama Wisata
+                        </Label>
+                        <Input
+                          id="name"
+                          name="name"
+                          placeholder="Nama Wisata"
+                          className="w-full"
+                          maxLength={100}
+                          required
+                        />
+                      </div>
 
-                  {/* Location Input Method Selection */}
-                  <div className="grid items-start grid-cols-4 gap-4">
-                    <Label className="pt-2 text-right">Koordinat</Label>
-                    <div className="col-span-3 space-y-4">
-                      <Tabs
-                        value={locationInputMethod}
-                        onValueChange={(value) =>
-                          setLocationInputMethod(value as "manual" | "map")
-                        }>
-                        <TabsList className="grid w-full grid-cols-2">
-                          <TabsTrigger
-                            value="manual"
-                            className="flex items-center gap-2">
-                            <MapPin className="w-4 h-4" />
-                            Input Manual
-                          </TabsTrigger>
-                          <TabsTrigger
-                            value="map"
-                            className="flex items-center gap-2">
-                            <Map className="w-4 h-4" />
-                            Pilih di Peta
-                          </TabsTrigger>
-                        </TabsList>
+                      <div className="space-y-2">
+                        <Label
+                          htmlFor="description"
+                          className="text-sm font-medium">
+                          Deskripsi
+                        </Label>
+                        <Textarea
+                          id="description"
+                          name="description"
+                          placeholder="Deskripsi Wisata"
+                          className="w-full min-h-[80px]"
+                          required
+                        />
+                      </div>
 
-                        <TabsContent
-                          value="manual"
-                          className="space-y-3">
-                          <div className="grid grid-cols-2 gap-3">
-                            <div>
-                              <Label htmlFor="latitude">Latitude</Label>
-                              <Input
-                                id="latitude"
-                                name="latitude"
-                                type="number"
-                                step="any"
-                                placeholder="Latitude"
-                                required={locationInputMethod === "manual"}
-                              />
-                            </div>
-                            <div>
-                              <Label htmlFor="longitude">Longitude</Label>
-                              <Input
-                                id="longitude"
-                                name="longitude"
-                                type="number"
-                                step="any"
-                                placeholder="Longitude"
-                                required={locationInputMethod === "manual"}
-                              />
-                            </div>
+                      <div className="space-y-2">
+                        <Label
+                          htmlFor="location"
+                          className="text-sm font-medium">
+                          Lokasi
+                        </Label>
+                        <Input
+                          id="location"
+                          name="location"
+                          placeholder="Lokasi"
+                          className="w-full"
+                          maxLength={200}
+                          required
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label
+                          htmlFor="type"
+                          className="text-sm font-medium">
+                          Tipe
+                        </Label>
+                        <Select name="type">
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Tipe Wisata" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Geologi">Geologi</SelectItem>
+                            <SelectItem value="Biologi">Biologi</SelectItem>
+                            <SelectItem value="Budaya">Budaya</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">Koordinat</Label>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label
+                              htmlFor="latitude"
+                              className="text-xs text-muted-foreground">
+                              Lattitude
+                            </Label>
+                            <Input
+                              id="latitude"
+                              name="latitude"
+                              type="number"
+                              step="any"
+                              placeholder="String"
+                              value={selectedLatitude}
+                              onChange={(e) =>
+                                setSelectedLatitude(
+                                  Number.parseFloat(e.target.value) || 0
+                                )
+                              }
+                              required
+                            />
                           </div>
-                        </TabsContent>
+                          <div>
+                            <Label
+                              htmlFor="longitude"
+                              className="text-xs text-muted-foreground">
+                              Longitude
+                            </Label>
+                            <Input
+                              id="longitude"
+                              name="longitude"
+                              type="number"
+                              step="any"
+                              placeholder="String"
+                              value={selectedLongitude}
+                              onChange={(e) =>
+                                setSelectedLongitude(
+                                  Number.parseFloat(e.target.value) || 0
+                                )
+                              }
+                              required
+                            />
+                          </div>
+                        </div>
+                      </div>
 
-                        <TabsContent value="map">
-                          <MapLocationPicker
-                            onLocationSelect={(lat, lng) =>
-                              handleLocationSelect(lat, lng, false)
-                            }
-                            height="300px"
-                          />
-                          {/* Hidden inputs to store map coordinates */}
-                          <input
-                            type="hidden"
-                            name="latitude"
-                            value={selectedLatitude || ""}
-                          />
-                          <input
-                            type="hidden"
-                            name="longitude"
-                            value={selectedLongitude || ""}
-                          />
-                        </TabsContent>
-                      </Tabs>
-                    </div>
-                  </div>
+                      <div className="space-y-2">
+                        <Label
+                          htmlFor="ticketPrice"
+                          className="text-sm font-medium">
+                          Harga Tiket (Rp)
+                        </Label>
+                        <Input
+                          id="ticketPrice"
+                          name="ticketPrice"
+                          type="number"
+                          min="0"
+                          step="1000"
+                          placeholder="0 (kosongkan jika gratis)"
+                          className="w-full"
+                        />
+                      </div>
 
-                  <div className="grid items-start grid-cols-4 gap-4">
-                    <Label
-                      htmlFor="images"
-                      className="pt-2 text-right">
-                      Gambar
-                    </Label>
-                    <div className="col-span-3 space-y-3">
-                      <div className="flex items-center gap-2">
-                        <div className="relative w-full p-2 border rounded-md">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label
+                            htmlFor="openingTime"
+                            className="text-sm font-medium">
+                            Jam Buka
+                          </Label>
+                          <Input
+                            id="openingTime"
+                            name="openingTime"
+                            type="time"
+                            className="w-full"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label
+                            htmlFor="closingTime"
+                            className="text-sm font-medium">
+                            Jam Tutup
+                          </Label>
+                          <Input
+                            id="closingTime"
+                            name="closingTime"
+                            type="time"
+                            className="w-full"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label
+                          htmlFor="images"
+                          className="text-sm font-medium">
+                          Gambar
+                        </Label>
+                        <div className="relative p-4 transition-colors border-2 border-gray-300 border-dashed rounded-lg hover:border-gray-400">
                           <Input
                             id="images"
                             name="images"
                             type="file"
                             multiple
                             accept="image/*"
-                            className="absolute inset-0 z-10 w-full opacity-0 cursor-pointer"
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                             onChange={(e) => handleImageChange(e)}
                             required
                           />
-                          <div className="flex items-center justify-center gap-2 text-muted-foreground">
-                            <Upload className="w-4 h-4" />
-                            <span>Pilih gambar atau seret ke sini</span>
+                          <div className="text-center">
+                            <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                            <p className="text-sm text-gray-600">
+                              Pilih Gambar
+                            </p>
                           </div>
                         </div>
-                      </div>
 
-                      {previewImages.length > 0 && (
-                        <div className="grid grid-cols-3 gap-2">
-                          {previewImages.map((url, index) => (
-                            <div
-                              key={index}
-                              className="relative overflow-hidden border rounded-md aspect-square">
-                              <Image
-                                src={url || "/placeholder.svg"}
-                                alt={`Preview ${index + 1}`}
-                                width={150}
-                                height={150}
-                                className="object-cover w-full h-full"
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                        {previewImages.length > 0 && (
+                          <div className="grid grid-cols-3 gap-2 mt-3">
+                            {previewImages.map((url, index) => (
+                              <div
+                                key={index}
+                                className="relative overflow-hidden border rounded-md aspect-square">
+                                <Image
+                                  src={url || "/placeholder.svg"}
+                                  alt={`Preview ${index + 1}`}
+                                  width={100}
+                                  height={100}
+                                  className="object-cover w-full h-full"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Column - Map */}
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">
+                        Pilih koordinat pada Maps
+                      </Label>
+                      <MapLocationPicker
+                        onLocationSelect={(lat, lng) =>
+                          handleLocationSelect(lat, lng, false)
+                        }
+                        initialLat={selectedLatitude}
+                        initialLng={selectedLongitude}
+                        height="400px"
+                      />
                     </div>
                   </div>
                 </div>
+
                 {formError && (
                   <div className="p-3 mb-4 text-sm text-red-600 border border-red-200 rounded-md bg-red-50">
                     {formError}
                   </div>
                 )}
+
                 {isSubmitting && (
                   <div className="mb-4">
                     <Label className="mb-1.5 block">Mengunggah...</Label>
@@ -797,7 +884,8 @@ export default function WisataPage() {
                     />
                   </div>
                 )}
-                <DialogFooter>
+
+                <DialogFooter className="flex gap-3">
                   <Button
                     variant="outline"
                     type="button"
@@ -805,17 +893,18 @@ export default function WisataPage() {
                       setOpenAddDialog(false);
                       setFormError(null);
                       setPreviewImages([]);
-                      setSelectedLatitude(0);
-                      setSelectedLongitude(0);
-                      setLocationInputMethod("manual");
+                      setSelectedLatitude(-6.2);
+                      setSelectedLongitude(106.816);
                       if (addFormRef.current) addFormRef.current.reset();
                     }}
-                    disabled={isSubmitting}>
+                    disabled={isSubmitting}
+                    className="px-8">
                     Batal
                   </Button>
                   <Button
                     type="submit"
-                    disabled={isSubmitting}>
+                    disabled={isSubmitting}
+                    className="px-8 bg-blue-600 hover:bg-blue-700">
                     {isSubmitting ? "Menyimpan..." : "Simpan"}
                   </Button>
                 </DialogFooter>
@@ -933,6 +1022,19 @@ export default function WisataPage() {
                           {wisata.type}
                         </span>
                       )}
+                      {wisata.ticketPrice !== undefined && (
+                        <span className="flex items-center text-green-600">
+                          <DollarSign className="w-3.5 h-3.5 mr-1" />
+                          {formatPrice(wisata.ticketPrice)}
+                        </span>
+                      )}
+                      {(wisata.openingTime || wisata.closingTime) && (
+                        <span className="flex items-center text-blue-600">
+                          <Clock className="w-3.5 h-3.5 mr-1" />
+                          {wisata.openingTime || "00:00"} -{" "}
+                          {wisata.closingTime || "24:00"}
+                        </span>
+                      )}
                       {wisata.reviews > 0 && (
                         <span className="flex items-center">
                           <Star className="w-3.5 h-3.5 mr-1 text-yellow-500" />
@@ -1020,10 +1122,11 @@ export default function WisataPage() {
           )}
         </div>
       </Card>
+
       <Dialog
         open={openEditDialog}
         onOpenChange={setOpenEditDialog}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Wisata</DialogTitle>
             <DialogDescription>
@@ -1098,6 +1201,65 @@ export default function WisataPage() {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* Edit Price and Operating Hours */}
+                <div className="grid items-center grid-cols-4 gap-4">
+                  <Label
+                    htmlFor="edit-ticketPrice"
+                    className="text-right">
+                    Harga Tiket
+                  </Label>
+                  <div className="col-span-3">
+                    <Input
+                      id="edit-ticketPrice"
+                      name="ticketPrice"
+                      type="number"
+                      min="0"
+                      step="1000"
+                      defaultValue={selectedWisata.ticketPrice || ""}
+                      placeholder="0 (kosongkan jika gratis)"
+                      className="w-full"
+                    />
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Masukkan 0 atau kosongkan jika gratis
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid items-center grid-cols-4 gap-4">
+                  <Label className="text-right">Jam Operasional</Label>
+                  <div className="grid grid-cols-2 col-span-3 gap-3">
+                    <div>
+                      <Label
+                        htmlFor="edit-openingTime"
+                        className="text-sm">
+                        Jam Buka
+                      </Label>
+                      <Input
+                        id="edit-openingTime"
+                        name="openingTime"
+                        type="time"
+                        defaultValue={selectedWisata.openingTime || ""}
+                        className="w-full"
+                      />
+                    </div>
+                    <div>
+                      <Label
+                        htmlFor="edit-closingTime"
+                        className="text-sm">
+                        Jam Tutup
+                      </Label>
+                      <Input
+                        id="edit-closingTime"
+                        name="closingTime"
+                        type="time"
+                        defaultValue={selectedWisata.closingTime || ""}
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 <div className="grid items-center grid-cols-4 gap-4">
                   <Label
                     htmlFor="edit-latitude"
@@ -1145,7 +1307,7 @@ export default function WisataPage() {
                               key={index}
                               className="w-12 h-12">
                               <AvatarImage
-                                src={image}
+                                src={image || "/placeholder.svg"}
                                 alt={`Wisata image ${index + 1}`}
                               />
                               <AvatarFallback>IMG</AvatarFallback>
@@ -1224,6 +1386,7 @@ export default function WisataPage() {
           )}
         </DialogContent>
       </Dialog>
+
       <DeleteConfirmationDialog
         isOpen={openDeleteDialog}
         onClose={() => setOpenDeleteDialog(false)}

@@ -4,10 +4,11 @@ import type React from "react";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { MapPin, Star, Search, CheckCircle2 } from "lucide-react";
+import { MapPin, Star, Search, Clock, DollarSign } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 
 // Define the types based on your Prisma schema and API response
 interface Review {
@@ -41,9 +42,12 @@ interface Attraction {
   updatedAt?: string;
   pengelola?: Pengelola;
   updatedBy?: UpdatedBy;
+  ticketPrice?: number;
+  openingTime?: string;
+  closingTime?: string;
 }
 
-export default function HomePage() {
+export default function WisataPage() {
   const [attractions, setAttractions] = useState<Attraction[]>([]);
   const [filteredAttractions, setFilteredAttractions] = useState<Attraction[]>(
     []
@@ -137,7 +141,8 @@ export default function HomePage() {
       (attraction) =>
         attraction.name.toLowerCase().includes(query) ||
         attraction.location.toLowerCase().includes(query) ||
-        attraction.description.toLowerCase().includes(query)
+        attraction.description.toLowerCase().includes(query) ||
+        attraction.type?.toLowerCase().includes(query)
     );
 
     setFilteredAttractions(filtered);
@@ -162,18 +167,41 @@ export default function HomePage() {
     }
   };
 
+  const formatPrice = (price: number | null | undefined) => {
+    if (!price || price === 0) return "Gratis";
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
+    }).format(price);
+  };
+
+  const formatTime = (time: string | null | undefined) => {
+    if (!time) return null;
+    return time;
+  };
+
   return (
-    <div className="min-h-screen transition-colors ">
+    <div className="min-h-screen transition-colors">
       {/* Header Section */}
-      <div className="transition-colors ">
+      <div className="transition-colors">
         <div className="container px-4 py-8 mx-auto">
+          <div className="mb-8 text-center">
+            <h1 className="mb-4 text-4xl font-bold text-gray-900 dark:text-white">
+              Destinasi Wisata
+            </h1>
+            <p className="max-w-2xl mx-auto text-lg text-gray-600 dark:text-gray-300">
+              Temukan destinasi wisata terbaik yang telah terverifikasi
+            </p>
+          </div>
+
           {/* Search Bar */}
           <div className="max-w-md mx-auto">
             <div className="relative">
               <Search className="absolute w-4 h-4 text-gray-400 transform -translate-y-1/2 left-3 top-1/2 dark:text-gray-500" />
               <Input
                 type="text"
-                placeholder="Search destinations..."
+                placeholder="Cari destinasi wisata..."
                 value={searchQuery}
                 onChange={handleSearch}
                 className="h-12 pl-10 border-gray-200 dark:border-gray-600 focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
@@ -236,6 +264,11 @@ export default function HomePage() {
                               fill
                               className="object-cover transition-transform duration-300 group-hover:scale-105"
                             />
+                            {attraction.type && (
+                              <Badge className="absolute bg-blue-500 top-3 left-3 hover:bg-blue-600">
+                                {attraction.type}
+                              </Badge>
+                            )}
                           </div>
 
                           <div className="p-6">
@@ -252,6 +285,32 @@ export default function HomePage() {
                               {attraction.description}
                             </p>
 
+                            {/* Price and Operating Hours */}
+                            <div className="mb-4 space-y-2">
+                              {attraction.ticketPrice !== undefined && (
+                                <div className="flex items-center text-sm">
+                                  <DollarSign className="w-4 h-4 mr-1 text-green-500" />
+                                  <span className="font-medium text-green-600 dark:text-green-400">
+                                    {formatPrice(attraction.ticketPrice)}
+                                  </span>
+                                </div>
+                              )}
+
+                              {(attraction.openingTime ||
+                                attraction.closingTime) && (
+                                <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
+                                  <Clock className="w-4 h-4 mr-1 text-blue-500" />
+                                  <span>
+                                    {formatTime(attraction.openingTime) ||
+                                      "00:00"}{" "}
+                                    -{" "}
+                                    {formatTime(attraction.closingTime) ||
+                                      "24:00"}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+
                             <div className="flex items-center justify-between">
                               {Array.isArray(attraction.reviews) &&
                               attraction.reviews.length > 0 ? (
@@ -266,12 +325,12 @@ export default function HomePage() {
                                 </div>
                               ) : (
                                 <span className="text-sm text-gray-400 dark:text-gray-500">
-                                  No reviews yet
+                                  Belum ada ulasan
                                 </span>
                               )}
 
                               <span className="text-sm font-medium text-blue-600 dark:text-blue-400 group-hover:text-blue-700 dark:group-hover:text-blue-300">
-                                View Details →
+                                Lihat Detail →
                               </span>
                             </div>
                           </div>
@@ -289,13 +348,13 @@ export default function HomePage() {
                   </div>
                   <h3 className="mb-2 text-xl font-semibold text-gray-900 dark:text-white">
                     {searchQuery.trim() !== ""
-                      ? "No results found"
-                      : "No attractions available"}
+                      ? "Tidak ada hasil ditemukan"
+                      : "Belum ada destinasi wisata"}
                   </h3>
                   <p className="text-gray-600 dark:text-gray-300">
                     {searchQuery.trim() !== ""
-                      ? "Try adjusting your search terms or browse all destinations."
-                      : "Check back later for new verified attractions."}
+                      ? "Coba sesuaikan kata kunci pencarian atau jelajahi semua destinasi."
+                      : "Periksa kembali nanti untuk destinasi wisata terverifikasi yang baru."}
                   </p>
                 </div>
               </div>

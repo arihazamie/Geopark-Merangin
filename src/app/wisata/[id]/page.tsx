@@ -1,4 +1,3 @@
-// src/app/wisata/[id]/page.tsx
 "use client";
 
 import React from "react";
@@ -10,10 +9,11 @@ import {
   Calendar,
   Star,
   ChevronLeft,
-  Map,
   AlertCircle,
   Edit,
   Trash2,
+  Clock,
+  DollarSign,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -22,6 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import dynamic from "next/dynamic";
 import StarRating from "@/components/Wisata/id/star-rating";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
@@ -67,6 +68,9 @@ interface Attraction {
   updatedAt?: string;
   pengelola?: Pengelola;
   updatedBy?: UpdatedBy;
+  ticketPrice?: number;
+  openingTime?: string;
+  closingTime?: string;
 }
 
 const LeafletMap = dynamic(() => import("@/components/Wisata/id/leaflet-map"), {
@@ -279,6 +283,20 @@ export default function AttractionDetailPage({
     setDeleteDialogOpen(true);
   };
 
+  const formatPrice = (price: number | null | undefined) => {
+    if (!price || price === 0) return "Gratis";
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
+    }).format(price);
+  };
+
+  const formatTime = (time: string | null | undefined) => {
+    if (!time) return null;
+    return time;
+  };
+
   useEffect(() => {
     fetchAttraction();
     fetchCurrentUser();
@@ -294,7 +312,7 @@ export default function AttractionDetailPage({
           <div className="container px-4 py-4 mx-auto">
             <div className="flex items-center justify-between">
               <Link
-                href="/"
+                href="/wisata"
                 className="flex items-center gap-2">
                 <ChevronLeft size={20} />
                 <span>Kembali ke Destinasi</span>
@@ -341,7 +359,7 @@ export default function AttractionDetailPage({
           <div className="container px-4 py-4 mx-auto">
             <div className="flex items-center justify-between">
               <Link
-                href="/"
+                href="/wisata"
                 className="flex items-center gap-2 ">
                 <ChevronLeft size={20} />
                 <span>Kembali ke Destinasi</span>
@@ -360,7 +378,7 @@ export default function AttractionDetailPage({
               {error || "Destinasi wisata tidak ditemukan"}
             </AlertDescription>
           </Alert>
-          <Link href="/">
+          <Link href="/wisata">
             <Button>Kembali ke Beranda</Button>
           </Link>
         </div>
@@ -382,7 +400,7 @@ export default function AttractionDetailPage({
         <div className="container px-4 py-4 mx-auto">
           <div className="flex items-center justify-between">
             <Link
-              href="/"
+              href="/wisata"
               className="flex items-center gap-2 ">
               <ChevronLeft size={20} />
               <span>Kembali ke Destinasi</span>
@@ -429,11 +447,13 @@ export default function AttractionDetailPage({
               <div className="flex items-center gap-2 mb-2">
                 <MapPin size={18} />
                 <span>{attraction.location}</span>
-                <Badge
-                  variant="outline"
-                  className="ml-2">
-                  {attraction.type}
-                </Badge>
+                {attraction.type && (
+                  <Badge
+                    variant="outline"
+                    className="ml-2">
+                    {attraction.type}
+                  </Badge>
+                )}
               </div>
 
               <h1 className="mb-3 text-3xl font-bold">{attraction.name}</h1>
@@ -456,20 +476,55 @@ export default function AttractionDetailPage({
               </div>
             </div>
 
+            {/* Price and Operating Hours Info */}
+            <div className="grid grid-cols-1 gap-4 mb-8 md:grid-cols-2">
+              {attraction.ticketPrice !== undefined && (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <DollarSign className="w-5 h-5 text-green-500" />
+                      Harga Tiket
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-2xl font-bold text-green-600">
+                      {formatPrice(attraction.ticketPrice)}
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {(attraction.openingTime || attraction.closingTime) && (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <Clock className="w-5 h-5 text-blue-500" />
+                      Jam Operasional
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-2xl font-bold text-blue-600">
+                      {formatTime(attraction.openingTime) || "00:00"} -{" "}
+                      {formatTime(attraction.closingTime) || "24:00"}
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Setiap hari
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+
             {/* Description Section */}
             <div className="mb-10">
               <h2 className="mb-4 text-2xl font-bold">Deskripsi</h2>
-              <div className="p-6 shadow-sm rounded-xl">
-                <div className="leading-relaxed text-muted-foreground">
-                  <p className="mb-4">{attraction.description}</p>
-                  <p>
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-                    Nulla facilisi. Maecenas vel tincidunt nunc, eget tincidunt
-                    nisl. Donec varius, nisi vel tincidunt ultrices, nunc nisl
-                    aliquam nisl, eget aliquam nisl nunc vel nisi.
-                  </p>
-                </div>
-              </div>
+              <Card>
+                <CardContent className="p-6">
+                  <div className="leading-relaxed text-muted-foreground">
+                    <p className="mb-4">{attraction.description}</p>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
 
             {/* Facilities Section */}
@@ -479,27 +534,29 @@ export default function AttractionDetailPage({
                 {[
                   { icon: "parking", name: "Parkir Tersedia" },
                   { icon: "toilet", name: "Toilet Umum" },
+                  { icon: "wifi", name: "WiFi Gratis" },
+                  { icon: "restaurant", name: "Area Makan" },
                 ].map((facility, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center gap-3 p-4 rounded-lg shadow-sm">
-                    <div className="p-2 rounded-full">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="20"
-                        height="20"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="lucide lucide-check">
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                    </div>
-                    <span>{facility.name}</span>
-                  </div>
+                  <Card key={index}>
+                    <CardContent className="flex items-center gap-3 p-4">
+                      <div className="p-2 bg-green-100 rounded-full dark:bg-green-900">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="20"
+                          height="20"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="text-green-600 lucide lucide-check">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      </div>
+                      <span>{facility.name}</span>
+                    </CardContent>
+                  </Card>
                 ))}
               </div>
             </div>
@@ -507,34 +564,36 @@ export default function AttractionDetailPage({
             {/* Location Section with Leaflet Map */}
             <div className="mb-10">
               <h2 className="mb-4 text-2xl font-bold">Lokasi</h2>
-              <div className="p-4 mb-4 shadow-sm rounded-xl">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <p className="text-muted-foreground">
-                      {attraction.location}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Coordinates: {attraction.latitude ?? "N/A"},{" "}
-                      {attraction.longitude ?? "N/A"}
-                    </p>
-                  </div>
-                </div>
-                <div className="h-[400px] w-full rounded-lg overflow-hidden -z-50">
-                  {hasValidCoordinates ? (
-                    <LeafletMap
-                      latitude={attraction.latitude!}
-                      longitude={attraction.longitude!}
-                      name={attraction.name}
-                    />
-                  ) : (
-                    <div className="flex items-center justify-center w-full h-full">
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
                       <p className="text-muted-foreground">
-                        Peta tidak tersedia: Koordinat tidak disediakan
+                        {attraction.location}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Coordinates: {attraction.latitude ?? "N/A"},{" "}
+                        {attraction.longitude ?? "N/A"}
                       </p>
                     </div>
-                  )}
-                </div>
-              </div>
+                  </div>
+                  <div className="h-[400px] w-full rounded-lg overflow-hidden -z-50">
+                    {hasValidCoordinates ? (
+                      <LeafletMap
+                        latitude={attraction.latitude!}
+                        longitude={attraction.longitude!}
+                        name={attraction.name}
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center w-full h-full bg-gray-100 rounded-lg dark:bg-gray-800">
+                        <p className="text-muted-foreground">
+                          Peta tidak tersedia: Koordinat tidak disediakan
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
 
             {/* Ulasan Section with Tabs */}
@@ -552,190 +611,197 @@ export default function AttractionDetailPage({
                 <TabsContent
                   value="previous"
                   className="mt-0">
-                  <div className="p-6 shadow-sm rounded-xl">
-                    {attraction.reviews.length > 0 ? (
-                      <div className="h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                        <div className="space-y-6">
-                          {attraction.reviews.map((review) => (
-                            <div
-                              key={review.id}
-                              className="p-6 border rounded-xl">
-                              {editingReviewId === review.id ? (
-                                // Edit Form (UPDATE)
-                                <form onSubmit={handleUpdateReview}>
-                                  <div className="mb-4">
-                                    <Label
-                                      htmlFor="edit-rating"
-                                      className="block mb-2">
-                                      Rating
-                                    </Label>
-                                    <StarRating
-                                      rating={editRating}
-                                      onRatingChange={setEditRating}
-                                      size={24}
-                                    />
-                                  </div>
-                                  <div className="mb-4">
-                                    <Label
-                                      htmlFor="edit-comment"
-                                      className="block mb-2">
-                                      Komentar
-                                    </Label>
-                                    <Textarea
-                                      id="edit-comment"
-                                      value={editComment}
-                                      onChange={(e) =>
-                                        setEditComment(e.target.value)
-                                      }
-                                      className="min-h-[100px]"
-                                    />
-                                  </div>
-                                  <div className="flex gap-2">
-                                    <Button type="submit">Simpan</Button>
-                                    <Button
-                                      variant="outline"
-                                      onClick={() => setEditingReviewId(null)}>
-                                      Batal
-                                    </Button>
-                                  </div>
-                                </form>
-                              ) : (
-                                // Display Review (READ)
-                                <div className="flex items-start gap-4">
-                                  <Avatar>
-                                    <AvatarImage
-                                      src={
-                                        review.pengguna.image ||
-                                        "/placeholder.svg" ||
-                                        "/placeholder.svg"
-                                      }
-                                    />
-                                    <AvatarFallback>
-                                      {review.pengguna.name
-                                        .substring(0, 2)
-                                        .toUpperCase()}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <div className="flex-1">
-                                    <div className="flex items-center justify-between mb-1">
-                                      <h4 className="font-medium">
-                                        {review.pengguna.name}
-                                      </h4>
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-sm text-muted-foreground">
-                                          {new Date(
-                                            review.createdAt
-                                          ).toLocaleDateString()}
-                                        </span>
-                                        {currentUserId ===
-                                          review.pengguna.id && (
-                                          <>
-                                            <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              onClick={() =>
-                                                handleEditReview(review)
-                                              }>
-                                              <Edit size={16} />
-                                            </Button>
-                                            <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              onClick={() =>
-                                                handleDeleteReview(review.id)
-                                              }>
-                                              <Trash2 size={16} />
-                                            </Button>
-                                          </>
-                                        )}
+                  <Card>
+                    <CardContent className="p-6">
+                      {attraction.reviews.length > 0 ? (
+                        <div className="h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                          <div className="space-y-6">
+                            {attraction.reviews.map((review) => (
+                              <div
+                                key={review.id}
+                                className="p-6 border rounded-xl">
+                                {editingReviewId === review.id ? (
+                                  // Edit Form (UPDATE)
+                                  <form onSubmit={handleUpdateReview}>
+                                    <div className="mb-4">
+                                      <Label
+                                        htmlFor="edit-rating"
+                                        className="block mb-2">
+                                        Rating
+                                      </Label>
+                                      <StarRating
+                                        rating={editRating}
+                                        onRatingChange={setEditRating}
+                                        size={24}
+                                      />
+                                    </div>
+                                    <div className="mb-4">
+                                      <Label
+                                        htmlFor="edit-comment"
+                                        className="block mb-2">
+                                        Komentar
+                                      </Label>
+                                      <Textarea
+                                        id="edit-comment"
+                                        value={editComment}
+                                        onChange={(e) =>
+                                          setEditComment(e.target.value)
+                                        }
+                                        className="min-h-[100px]"
+                                      />
+                                    </div>
+                                    <div className="flex gap-2">
+                                      <Button type="submit">Simpan</Button>
+                                      <Button
+                                        variant="outline"
+                                        onClick={() =>
+                                          setEditingReviewId(null)
+                                        }>
+                                        Batal
+                                      </Button>
+                                    </div>
+                                  </form>
+                                ) : (
+                                  // Display Review (READ)
+                                  <div className="flex items-start gap-4">
+                                    <Avatar>
+                                      <AvatarImage
+                                        src={
+                                          review.pengguna.image ||
+                                          "/placeholder.svg"
+                                        }
+                                      />
+                                      <AvatarFallback>
+                                        {review.pengguna.name
+                                          .substring(0, 2)
+                                          .toUpperCase()}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <div className="flex-1">
+                                      <div className="flex items-center justify-between mb-1">
+                                        <h4 className="font-medium">
+                                          {review.pengguna.name}
+                                        </h4>
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-sm text-muted-foreground">
+                                            {new Date(
+                                              review.createdAt
+                                            ).toLocaleDateString()}
+                                          </span>
+                                          {currentUserId ===
+                                            review.pengguna.id && (
+                                            <>
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() =>
+                                                  handleEditReview(review)
+                                                }>
+                                                <Edit size={16} />
+                                              </Button>
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() =>
+                                                  handleDeleteReview(review.id)
+                                                }>
+                                                <Trash2 size={16} />
+                                              </Button>
+                                            </>
+                                          )}
+                                        </div>
                                       </div>
+                                      <div className="flex items-center gap-1 mb-2">
+                                        {[...Array(5)].map((_, i) => (
+                                          <Star
+                                            key={i}
+                                            size={16}
+                                            className={
+                                              i < review.rating
+                                                ? "fill-yellow-400 text-yellow-400"
+                                                : "text-gray-300"
+                                            }
+                                          />
+                                        ))}
+                                      </div>
+                                      <p className="text-muted-foreground">
+                                        {review.comment}
+                                      </p>
                                     </div>
-                                    <div className="flex items-center gap-1 mb-2">
-                                      {[...Array(5)].map((_, i) => (
-                                        <Star
-                                          key={i}
-                                          size={16}
-                                          className={
-                                            i < review.rating
-                                              ? "fill-yellow-400 text-yellow-400"
-                                              : "text-gray-300"
-                                          }
-                                        />
-                                      ))}
-                                    </div>
-                                    <p className="text-muted-foreground">
-                                      {review.comment}
-                                    </p>
                                   </div>
-                                </div>
-                              )}
-                            </div>
-                          ))}
+                                )}
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    ) : (
-                      <div className="py-8 text-center text-muted-foreground">
-                        <p>
-                          Belum ada ulasan. Jadilah yang pertama memberikan
-                          ulasan!
-                        </p>
-                      </div>
-                    )}
-                  </div>
+                      ) : (
+                        <div className="py-8 text-center text-muted-foreground">
+                          <p>
+                            Belum ada ulasan. Jadilah yang pertama memberikan
+                            ulasan!
+                          </p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
                 </TabsContent>
 
                 <TabsContent
                   value="new"
                   className="mt-0">
                   {currentUserId ? (
-                    <div className="p-6 shadow-sm rounded-xl">
-                      <form onSubmit={handleSubmitReview}>
-                        <div className="mb-6">
-                          <Label
-                            htmlFor="rating"
-                            className="block mb-3">
-                            Rating
-                          </Label>
-                          <div className="flex items-center">
-                            <StarRating
-                              rating={reviewRating}
-                              onRatingChange={setReviewRating}
-                              size={24}
-                            />
-                            <span className="ml-2 text-muted-foreground">
-                              {reviewRating}{" "}
-                              {reviewRating === 1 ? "bintang" : "bintang"}
-                            </span>
+                    <Card>
+                      <CardContent className="p-6">
+                        <form onSubmit={handleSubmitReview}>
+                          <div className="mb-6">
+                            <Label
+                              htmlFor="rating"
+                              className="block mb-3">
+                              Rating
+                            </Label>
+                            <div className="flex items-center">
+                              <StarRating
+                                rating={reviewRating}
+                                onRatingChange={setReviewRating}
+                                size={24}
+                              />
+                              <span className="ml-2 text-muted-foreground">
+                                {reviewRating}{" "}
+                                {reviewRating === 1 ? "bintang" : "bintang"}
+                              </span>
+                            </div>
                           </div>
-                        </div>
 
-                        <div className="mb-6">
-                          <Label
-                            htmlFor="comment"
-                            className="block mb-2">
-                            Komentar
-                          </Label>
-                          <Textarea
-                            id="comment"
-                            placeholder="Bagikan pendapat Anda tentang wisata ini..."
-                            className="min-h-[120px]"
-                            value={reviewComment}
-                            onChange={(e) => setReviewComment(e.target.value)}
-                          />
-                        </div>
+                          <div className="mb-6">
+                            <Label
+                              htmlFor="comment"
+                              className="block mb-2">
+                              Komentar
+                            </Label>
+                            <Textarea
+                              id="comment"
+                              placeholder="Bagikan pendapat Anda tentang wisata ini..."
+                              className="min-h-[120px]"
+                              value={reviewComment}
+                              onChange={(e) => setReviewComment(e.target.value)}
+                            />
+                          </div>
 
-                        <Button type="submit">Kirim Ulasan</Button>
-                      </form>
-                    </div>
+                          <Button type="submit">Kirim Ulasan</Button>
+                        </form>
+                      </CardContent>
+                    </Card>
                   ) : (
-                    <div className="p-6 text-center shadow-sm rounded-xl">
-                      <p className="mb-4 text-muted-foreground">
-                        Silakan login untuk memberikan ulasan
-                      </p>
-                      <Button asChild>
-                        <Link href="/api/auth/signin">Login</Link>
-                      </Button>
-                    </div>
+                    <Card>
+                      <CardContent className="p-6 text-center">
+                        <p className="mb-4 text-muted-foreground">
+                          Silakan login untuk memberikan ulasan
+                        </p>
+                        <Button asChild>
+                          <Link href="/api/auth/signin">Login</Link>
+                        </Button>
+                      </CardContent>
+                    </Card>
                   )}
                 </TabsContent>
               </Tabs>

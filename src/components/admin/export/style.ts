@@ -43,6 +43,18 @@ export const styles = StyleSheet.create({
     paddingBottom: 15,
     alignItems: "center",
   },
+  dateRangeText: {
+    fontSize: 12,
+    textAlign: "center",
+    marginBottom: 20,
+    color: "#374151",
+    fontStyle: "italic",
+    backgroundColor: "#f3f4f6",
+    padding: 8,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+  },
   headerContent: {
     alignItems: "center",
     textAlign: "center",

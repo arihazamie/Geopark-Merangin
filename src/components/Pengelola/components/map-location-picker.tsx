@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Button } from "@/components/ui/button";
-import { MapPin, RotateCcw, Move, Info } from "lucide-react";
+import { MapPin, RotateCcw, Move } from "lucide-react";
 
 const fixLeafletIcon = () => {
   delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -26,7 +26,7 @@ interface MapLocationPickerProps {
 // Move constants outside component or memoize them
 const defaultLat = -2.1;
 const defaultLng = 102.0;
-const defaultZoom = 9;
+const defaultZoom = 12;
 
 export default function MapLocationPicker({
   onLocationSelect,
@@ -101,13 +101,19 @@ export default function MapLocationPicker({
   const loadGeoparkBoundary = useCallback(async () => {
     try {
       setIsLoadingBoundary(true);
+      console.log("Attempting to fetch GeoJSON from /data/geopark.geojson");
+
       const response = await fetch("/data/geopark.geojson");
 
       if (!response.ok) {
+        console.warn(
+          `GeoJSON fetch failed: ${response.status} ${response.statusText}`
+        );
         throw new Error(`Failed to fetch GeoJSON: ${response.status}`);
       }
 
       const geojsonData = await response.json();
+      console.log("GeoJSON data loaded successfully:", geojsonData);
 
       if (mapInstanceRef.current) {
         // Remove existing GeoJSON layer
@@ -182,9 +188,12 @@ export default function MapLocationPicker({
         if (bounds.isValid()) {
           mapInstanceRef.current.fitBounds(bounds, { padding: [20, 20] });
         }
+
+        console.log("GeoJSON layer added to map successfully");
       }
     } catch (error) {
       console.error("Error loading geopark boundary:", error);
+      console.log("Falling back to default map center");
       // If GeoJSON fails to load, just center on Merangin coordinates
       if (mapInstanceRef.current) {
         mapInstanceRef.current.setView([defaultLat, defaultLng], defaultZoom);
@@ -272,7 +281,7 @@ export default function MapLocationPicker({
 
           if (mapInstanceRef.current) {
             // Center map to current location
-            mapInstanceRef.current.setView([latitude, longitude], 15);
+            mapInstanceRef.current.setView([latitude, longitude], 16);
             createDraggableMarker(latitude, longitude);
           }
         },
@@ -305,29 +314,18 @@ export default function MapLocationPicker({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center">
         <div className="flex items-center gap-2">
-          <p className="text-sm text-muted-foreground">
-            Klik pada peta untuk memilih lokasi{" "}
-            {selectedCoords && "• Seret marker untuk mengubah posisi"}
-          </p>
           {isLoadingBoundary && (
             <div className="flex items-center gap-1 text-xs text-emerald-600">
-              <div className="w-3 h-3 border rounded-full border-emerald-600 animate-spin border-t-transparent"></div>
+              <div className="w-3 h-3 border rounded-full border-emerald-600 animate-spin border-t-transparent">
+                as
+              </div>
               Loading boundary...
             </div>
           )}
         </div>
         <div className="flex gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={centerToMerangin}
-            className="text-xs">
-            <MapPin className="w-3 h-3 mr-1" />
-            Geopark Merangin
-          </Button>
           <Button
             type="button"
             variant="outline"
@@ -354,45 +352,6 @@ export default function MapLocationPicker({
         className="w-full border rounded-md"
         style={{ height }}
       />
-
-      {selectedCoords && (
-        <div className="p-3 text-sm rounded-md bg-muted">
-          <div className="flex items-center gap-2 mb-2">
-            <Move className="w-4 h-4 text-blue-500" />
-            <strong>Koordinat yang dipilih:</strong>
-          </div>
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <div>Latitude: {selectedCoords.lat.toFixed(6)}</div>
-            <div>Longitude: {selectedCoords.lng.toFixed(6)}</div>
-          </div>
-          <p className="mt-2 text-xs text-muted-foreground">
-            💡 Tip: Seret marker untuk mengubah posisi atau klik di tempat lain
-            pada peta
-          </p>
-        </div>
-      )}
-
-      {!isLoadingBoundary && geoJsonLayerRef.current && geoparkInfo && (
-        <div className="p-3 text-xs border rounded-md bg-emerald-50 text-emerald-700 border-emerald-200">
-          <div className="flex items-start gap-2">
-            <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
-            <div>
-              <div className="mb-1 font-semibold">Geopark Merangin</div>
-              <div className="space-y-0.5 text-xs">
-                <div>
-                  📍 {geoparkInfo.Regency}, {geoparkInfo.Province}
-                </div>
-                <div>📏 Luas: {geoparkInfo.Area}</div>
-                <div>
-                  🏘️ {geoparkInfo.Districts} Kecamatan, {geoparkInfo.Villages}{" "}
-                  Desa
-                </div>
-                <div>👥 Populasi: {geoparkInfo.Population}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
