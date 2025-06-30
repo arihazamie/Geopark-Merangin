@@ -43,7 +43,7 @@ export function TourismPdfDocument({ data }: TourismPdfDocumentProps) {
         </View>
 
         {/* Judul Dokumen */}
-        <Text style={styles.reportTitle}>LAPORAN DATA ARTIKEL PARIWISATA</Text>
+        <Text style={styles.reportTitle}>LAPORAN DATA ARTIKEL</Text>
 
         {/* Tabel Artikel */}
         <View style={styles.table}>

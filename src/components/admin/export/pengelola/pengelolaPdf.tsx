@@ -43,7 +43,7 @@ export function TourismPdfDocument({ data }: TourismPdfDocumentProps) {
         </View>
 
         {/* Judul */}
-        <Text style={styles.reportTitle}>LAPORAN DATA PENGGUNA WISATA</Text>
+        <Text style={styles.reportTitle}>LAPORAN DATA PENGELOLA</Text>
 
         {/* Tabel */}
         <View style={styles.table}>
@@ -86,13 +86,11 @@ export function TourismPdfDocument({ data }: TourismPdfDocumentProps) {
               <View style={[styles.tableCol, styles.verificationCol]}>
                 <Text
                   style={
-                    item.isVerified === "true"
+                    item.isVerified
                       ? styles.statusVerified
                       : styles.statusNotVerified
                   }>
-                  {item.isVerified === "true"
-                    ? "Terverifikasi"
-                    : "Belum Terverifikasi"}
+                  {item.isVerified ? "Terverifikasi" : "Belum Terverifikasi"}
                 </Text>
               </View>
             </View>

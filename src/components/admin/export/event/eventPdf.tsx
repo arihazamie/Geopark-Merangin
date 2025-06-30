@@ -46,7 +46,7 @@ export function EventPdfDocument({ data }: EventPdfDocumentProps) {
         </View>
 
         {/* Title */}
-        <Text style={styles.reportTitle}>LAPORAN DATA EVENT PARIWISATA</Text>
+        <Text style={styles.reportTitle}>LAPORAN DATA EVENT</Text>
 
         {/* Table Header */}
         <View style={styles.table}>

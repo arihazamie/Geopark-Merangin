@@ -59,7 +59,7 @@ export function PengelolaPdfButton() {
           email: item.email,
           notelp: item.notelp,
           role: item.role,
-          isVerified: item.isVerified ? "Verified" : "Not Verified", // Convert boolean to string
+          isVerified: item.isVerified,
         })
       );
 
