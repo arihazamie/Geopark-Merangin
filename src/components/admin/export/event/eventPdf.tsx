@@ -102,8 +102,8 @@ export function EventPdfDocument({ data }: EventPdfDocumentProps) {
         {/* Footer */}
         <View style={styles.footer}>
           <View style={styles.footerRight}>
-            <Text style={styles.dateText}>Bangko, {formattedDate}</Text>
             <View style={styles.signatureSection}>
+              <Text style={styles.dateText}>Bangko, {formattedDate}</Text>
               <Text style={styles.signatureTitle}>Kepala Dinas</Text>
               <Text style={styles.signatureName}>Sukoso, S.STP</Text>
               <Text style={styles.signatureNip}>NIP. 198104061999121001</Text>
