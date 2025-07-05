@@ -127,6 +127,9 @@ export default function ArticlesPage() {
         <div className="container px-4 py-8 mx-auto">
           {/* Search Bar */}
           <div className="max-w-md mx-auto">
+            <div className="mb-4 text-center">
+              <h1 className="text-3xl font-bold">Artikel</h1>
+            </div>
             <div className="relative">
               <Search className="absolute w-4 h-4 text-gray-400 transform -translate-y-1/2 left-3 top-1/2 dark:text-gray-500" />
               <Input

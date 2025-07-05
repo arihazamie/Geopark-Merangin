@@ -411,21 +411,6 @@ export default function UlasanWisataPage() {
                       <div className="flex items-center gap-1">
                         {renderStars(ulasan.rating)}
                       </div>
-                      {ulasan.isVerified ? (
-                        <Badge
-                          variant="outline"
-                          className="text-green-600 border-green-200 bg-green-50">
-                          <Check className="w-3 h-3 mr-1" />
-                          Terverifikasi
-                        </Badge>
-                      ) : (
-                        <Badge
-                          variant="outline"
-                          className="bg-amber-50 text-amber-600 border-amber-200">
-                          <X className="w-3 h-3 mr-1" />
-                          Belum Terverifikasi
-                        </Badge>
-                      )}
                       <Badge
                         variant="secondary"
                         className="text-xs">

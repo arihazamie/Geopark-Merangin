@@ -479,16 +479,6 @@ export default function EventDetailPage({
                     </div>
                   </div>
 
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 text-blue-600 bg-blue-100 rounded-full">
-                      <MapPin size={18} />
-                    </div>
-                    <div>
-                      <h3 className="font-medium">Lokasi</h3>
-                      <p className="text-muted-foreground">{event.location}</p>
-                    </div>
-                  </div>
-
                   {event.ticketPrice && (
                     <div className="flex items-start gap-3">
                       <div className="p-2 text-blue-600 bg-blue-100 rounded-full">
@@ -523,7 +513,7 @@ export default function EventDetailPage({
                         <MapPin size={18} />
                       </div>
                       <div>
-                        <h3 className="font-medium">Destinasi Terkait</h3>
+                        <h3 className="font-medium">Lokasi</h3>
                         <Link
                           href={`/wisata/${event.wisata.id}`}
                           className="text-blue-600 hover:underline">
