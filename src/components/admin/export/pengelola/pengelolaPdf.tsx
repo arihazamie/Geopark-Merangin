@@ -30,14 +30,14 @@ export function TourismPdfDocument({ data }: TourismPdfDocumentProps) {
         <View style={styles.header}>
           <View style={styles.headerContent}>
             <Text style={styles.title}>
-              DINAS PARIWISATA DAN KEBUDAYAAN KABUPATEN MERANGIN
+              DINAS PARIWISATA PEMUDA DAN OLAHRAGA KABUPATEN MERANGIN
             </Text>
             <Text style={styles.subtitle}>
               Jl. H. Syamsudin Uban 1, Ps. Bangko, Kec. Bangko, Kabupaten
               Merangin, Jambi 37313
             </Text>
             <Text style={styles.subtitle}>
-              Email: dispar.merangin@gmail.com | Telp: (0746) 21024
+              Email: disparpora.meranginkab.go.id | Telp: (0746) 21892
             </Text>
           </View>
         </View>
