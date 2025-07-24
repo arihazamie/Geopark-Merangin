@@ -146,7 +146,7 @@ export async function GET(request: Request) {
 const imageHandler = createImageHandler({
   uploadDir: "wisata", // Removed leading slash to work better with Vercel Blob
   allowedTypes: /^image\/(jpeg|jpg|png)$/, // Fixed regex to match content-type format
-  maxFileSize: 3 * 1024 * 1024, // 3MB
+  maxFileSize: 5 * 1024 * 1024, // 3MB
   prefix: "wisata",
 });
 
@@ -338,10 +338,9 @@ export async function DELETE(request: Request) {
   }
 
   try {
-    // Cari wisata yang akan dihapus untuk mendapatkan daftar gambar
     const wisata = await prisma.wisata.findUnique({
       where: { id: Number(id) },
-      select: { id: true, images: true }, // Hanya ambil yang diperlukan
+      select: { id: true, images: true },
     });
 
     if (!wisata) {
@@ -351,18 +350,22 @@ export async function DELETE(request: Request) {
       );
     }
 
-    // Hapus record dari database
+    // Hapus semua event yang terhubung dengan wisata ini
+    await prisma.event.deleteMany({
+      where: { wisataId: Number(id) },
+    });
+
+    // Hapus wisata
     const deletedWisata = await prisma.wisata.delete({
       where: { id: Number(id) },
     });
 
-    // Bersihkan file gambar jika ada
+    // Bersihkan gambar
     if (wisata.images && wisata.images.length > 0) {
       try {
         await imageHandler.cleanupFiles(wisata.images);
       } catch (cleanupError) {
         console.warn("Failed to cleanup image files:", cleanupError);
-        // Jangan gagal operasi DELETE hanya karena cleanup gagal
       }
     }
 
