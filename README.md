@@ -1,36 +1,57 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🌋 Geopark Merangin Web
 
-## Getting Started
+A web-based tourism promotion information system for **Geopark Merangin**, designed to facilitate the dissemination of geotourism destination information and increase tourist interest and visits through interactive digital media.
 
-First, run the development server:
+🔗 Live Website: [https://geoparkmerangin.vercel.app](https://geoparkmerangin.vercel.app)  
+📦 GitHub Repo: [https://github.com/arihazamie/Geopark-Merangin](https://github.com/arihazamie/Geopark-Merangin)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+---
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 👥 User Roles
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+The system supports **4 user levels**:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 1. 🧍 Visitor
 
-## Learn More
+- Access tourism object information
+- View gallery and location details
+- Use interactive maps
+- No login required
 
-To learn more about Next.js, take a look at the following resources:
+### 2. 🧍 User
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- Has all access rights of a Visitor
+- Login to give ratings on destinations, events, and articles
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 3. 🧑‍💼 Manager
 
-## Deploy on Vercel
+- Login to manage tourism, event, and article content
+- Create/edit/delete tourism objects, events, articles, and user reviews
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 4. 👮 Admin
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Has all manager-level access
+- Manage manager accounts
+- Moderate content
+- Generate PDF reports for tourism, events, articles, and manager accounts
+
+---
+
+## 🚀 Key Features
+
+- 🗺️ **Interactive Map**: Displays tourism locations based on GPS coordinates
+- 🖼️ **Tourism Gallery**: Images and supporting information for each tourism object
+- 🔐 **Role-based Login**: Access rights differ by user level (User, Manager, Admin)
+- 📝 **Content Management**: CRUD functionality for tourism content (Manager & Admin)
+- 📱 **Mobile Responsive**: Fast and responsive design
+
+---
+
+## 🛠️ Technologies Used
+
+- **Next.js**
+- **TypeScript**
+- **Tailwind CSS**
+- **PostgreSQL**
+- **Prisma ORM**
+- **NextAuth.js** (Role-based authentication)
