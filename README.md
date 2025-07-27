@@ -54,4 +54,5 @@ The system supports **4 user levels**:
 - **Tailwind CSS**
 - **PostgreSQL**
 - **Prisma ORM**
-- **NextAuth.js** (Role-based authentication)
+- **NextAuth.js**
+- **SWR (Client-side data fetching and caching)**
