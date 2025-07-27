@@ -1,3 +1,9 @@
+## 📄 License
+
+This project is **closed-source**.  
+Copyright © 2025 Ari Hazamie.  
+All rights reserved. Unauthorized use is prohibited.
+
 # 🌋 Geopark Merangin Web
 
 A web-based tourism promotion information system for **Geopark Merangin**, designed to facilitate the dissemination of geotourism destination information and increase tourist interest and visits through interactive digital media.
