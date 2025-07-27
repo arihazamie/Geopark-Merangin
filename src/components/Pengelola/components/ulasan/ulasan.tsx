@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Star,
   Search,
@@ -13,6 +13,8 @@ import {
   Calendar,
   Landmark,
   FileText,
+  AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
@@ -37,6 +39,10 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LoadingCards } from "@/components/ui/loading-spinner";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import useSWR from "swr";
+
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 interface UlasanWisata {
   id: number;
@@ -120,9 +126,7 @@ export default function UlasanWisataPage() {
     null
   );
   const [searchTerm, setSearchTerm] = useState("");
-  const [ulasanData, setUlasanData] = useState<UlasanWisata[]>([]);
   const [filteredUlasan, setFilteredUlasan] = useState<UlasanWisata[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [ulasanToDelete, setUlasanToDelete] = useState<UlasanWisata | null>(
     null
@@ -131,9 +135,8 @@ export default function UlasanWisataPage() {
     "wisata"
   );
 
-  useEffect(() => {
-    fetchUlasan();
-  }, []);
+  const { data, error, isLoading, mutate } = useSWR("/api/ulasan", fetcher);
+  const ulasanData: UlasanWisata[] = useMemo(() => data || [], [data]);
 
   useEffect(() => {
     if (ulasanData.length > 0) {
@@ -141,17 +144,17 @@ export default function UlasanWisataPage() {
 
       // Filter by category based on which ID exists
       if (activeTab === "wisata") {
-        filtered = filtered.filter((ulasan) => ulasan.wisataId);
+        filtered = filtered.filter((ulasan: UlasanWisata) => ulasan.wisataId);
       } else if (activeTab === "artikel") {
-        filtered = filtered.filter((ulasan) => ulasan.artikelId);
+        filtered = filtered.filter((ulasan: UlasanWisata) => ulasan.artikelId);
       } else if (activeTab === "event") {
-        filtered = filtered.filter((ulasan) => ulasan.eventId);
+        filtered = filtered.filter((ulasan: UlasanWisata) => ulasan.eventId);
       }
 
       // Filter by search term
       if (searchTerm) {
         filtered = filtered.filter(
-          (ulasan) =>
+          (ulasan: UlasanWisata) =>
             ulasan.comment.toLowerCase().includes(searchTerm.toLowerCase()) ||
             (ulasan.pengguna?.name &&
               ulasan.pengguna.name
@@ -176,31 +179,6 @@ export default function UlasanWisataPage() {
     }
   }, [searchTerm, ulasanData, activeTab]);
 
-  const fetchUlasan = async () => {
-    setIsLoading(true);
-    try {
-      const response = await fetch("/api/ulasan", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      setUlasanData(data);
-      setFilteredUlasan(data);
-    } catch (error) {
-      console.error("Error fetching ulasan:", error);
-      toast.error("Gagal memuat data ulasan. Silakan coba lagi.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleDelete = (ulasan: UlasanWisata) => {
     setUlasanToDelete(ulasan);
     setOpenDeleteDialog(true);
@@ -216,20 +194,21 @@ export default function UlasanWisataPage() {
           "Content-Type": "application/json",
         },
       });
+      mutate();
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to delete ulasan");
       }
 
-      // Remove from local state
-      setUlasanData(ulasanData.filter((u) => u.id !== ulasanToDelete.id));
-      setFilteredUlasan(
-        filteredUlasan.filter((u) => u.id !== ulasanToDelete.id)
-      );
       toast.success("Ulasan berhasil dihapus");
     } catch (error) {
       console.error("Error deleting ulasan:", error);
-      toast.error("Gagal menghapus ulasan. Silakan coba lagi.");
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Gagal menghapus ulasan. Silakan coba lagi.";
+      toast.error(message);
     } finally {
       setOpenDeleteDialog(false);
       setUlasanToDelete(null);
@@ -237,15 +216,15 @@ export default function UlasanWisataPage() {
   };
 
   const getWisataCount = () => {
-    return ulasanData.filter((ulasan) => ulasan.wisataId).length;
+    return ulasanData.filter((ulasan: UlasanWisata) => ulasan.wisataId).length;
   };
 
   const getArtikelCount = () => {
-    return ulasanData.filter((ulasan) => ulasan.artikelId).length;
+    return ulasanData.filter((ulasan: UlasanWisata) => ulasan.artikelId).length;
   };
 
   const getEventCount = () => {
-    return ulasanData.filter((ulasan) => ulasan.eventId).length;
+    return ulasanData.filter((ulasan: UlasanWisata) => ulasan.eventId).length;
   };
 
   const formatDate = (dateString: string) => {
@@ -282,6 +261,47 @@ export default function UlasanWisataPage() {
     return "Unknown";
   };
 
+  const handleRetry = () => {
+    mutate();
+  };
+
+  // Error state
+  if (error) {
+    return (
+      <div className="container py-10 mx-auto space-y-8">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary/70">
+              Ulasan Wisata
+            </h1>
+            <p className="mt-2 text-muted-foreground">
+              Kelola ulasan wisata dalam satu tempat
+            </p>
+          </div>
+        </div>
+
+        <Alert variant="destructive">
+          <AlertCircle className="w-4 h-4" />
+          <AlertDescription className="flex items-center justify-between">
+            <span>
+              Gagal memuat data ulasan.{" "}
+              {error.message || "Terjadi kesalahan pada server."}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRetry}
+              className="ml-4 bg-transparent">
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Coba Lagi
+            </Button>
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  // Loading state
   if (isLoading) {
     return (
       <div className="container py-10 mx-auto space-y-8">
@@ -387,7 +407,7 @@ export default function UlasanWisataPage() {
               </p>
             </div>
           ) : (
-            filteredUlasan.map((ulasan) => (
+            filteredUlasan.map((ulasan: UlasanWisata) => (
               <div
                 key={ulasan.id}
                 className="p-4 transition-colors hover:bg-muted/30">
@@ -396,7 +416,9 @@ export default function UlasanWisataPage() {
                     <AvatarImage
                       src={
                         ulasan.pengguna?.image ||
-                        `https://api.dicebear.com/7.x/initials/svg?seed=${ulasan.pengguna?.name}`
+                        `https://api.dicebear.com/7.x/initials/svg?seed=${
+                          ulasan.pengguna?.name || "/placeholder.svg"
+                        }`
                       }
                       alt={ulasan.pengguna?.name}
                     />
@@ -405,23 +427,15 @@ export default function UlasanWisataPage() {
                         "UN"}
                     </AvatarFallback>
                   </Avatar>
-
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-2">
                       <div className="flex items-center gap-1">
                         {renderStars(ulasan.rating)}
                       </div>
-                      <Badge
-                        variant="secondary"
-                        className="text-xs">
-                        {getUlasanType(ulasan)}
-                      </Badge>
                     </div>
-
                     <p className="mb-3 text-sm text-muted-foreground line-clamp-3">
                       {ulasan.comment}
                     </p>
-
                     <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                       <span className="flex items-center">
                         <User className="w-3.5 h-3.5 mr-1" />

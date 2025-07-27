@@ -1,10 +1,8 @@
 "use client";
 
 import { DialogTrigger } from "@/components/ui/dialog";
-
 import type React from "react";
-
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import {
   PlusCircle,
   Search,
@@ -16,6 +14,8 @@ import {
   X,
   MapPin,
   Clock,
+  AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
@@ -51,8 +51,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LoadingCards } from "@/components/ui/loading-spinner";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { Progress } from "@/components/ui/progress";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import Image from "next/image";
-import { mutate } from "swr";
+import useSWR from "swr";
+
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 interface Event {
   id: number;
@@ -89,9 +92,7 @@ export default function PengelolaEvent() {
   const [openEditDialog, setOpenEditDialog] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [eventData, setEventData] = useState<Event[]>([]);
   const [filteredEvents, setFilteredEvents] = useState<Event[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [wisataList, setWisataList] = useState<Wisata[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
@@ -106,26 +107,28 @@ export default function PengelolaEvent() {
   const addFormRef = useRef<HTMLFormElement>(null);
   const editFormRef = useRef<HTMLFormElement>(null);
 
+  const { data, error, isLoading, mutate } = useSWR("/api/event", fetcher);
+  const eventData: Event[] = useMemo(() => data || [], [data]);
+
   useEffect(() => {
-    fetchEvents();
     fetchWisataList();
   }, []);
 
   useEffect(() => {
-    if (eventData.length > 0) {
+    if (eventData && eventData.length > 0) {
       let filtered = eventData;
 
       // Filter by tab
       if (activeTab === "verified") {
-        filtered = filtered.filter((event) => event.isVerified);
+        filtered = filtered.filter((event: Event) => event.isVerified);
       } else if (activeTab === "unverified") {
-        filtered = filtered.filter((event) => !event.isVerified);
+        filtered = filtered.filter((event: Event) => !event.isVerified);
       }
 
       // Filter by search term
       if (searchTerm) {
         filtered = filtered.filter(
-          (event) =>
+          (event: Event) =>
             event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
             event.description
               .toLowerCase()
@@ -136,27 +139,10 @@ export default function PengelolaEvent() {
                 .includes(searchTerm.toLowerCase()))
         );
       }
+
       setFilteredEvents(filtered);
     }
   }, [searchTerm, eventData, activeTab]);
-
-  const fetchEvents = async () => {
-    setIsLoading(true);
-    try {
-      const response = await fetch("/api/event");
-      if (!response.ok) {
-        throw new Error("Failed to fetch event data");
-      }
-      const data = await response.json();
-      setEventData(data);
-      setFilteredEvents(data);
-    } catch (error) {
-      console.error("Error fetching events:", error);
-      toast.error("Gagal memuat data event. Silakan coba lagi.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   // Update the fetchWisataList function to properly handle the API response structure
   const fetchWisataList = async () => {
@@ -166,7 +152,6 @@ export default function PengelolaEvent() {
         throw new Error("Failed to fetch wisata data");
       }
       const data = await response.json();
-
       // Check if data is an array directly or if it's nested in a property
       if (Array.isArray(data)) {
         setWisataList(data);
@@ -207,7 +192,6 @@ export default function PengelolaEvent() {
 
     try {
       const formData = new FormData(e.currentTarget);
-
       const progressInterval = setInterval(() => {
         setUploadProgress((prevProgress) => {
           if (prevProgress >= 95) {
@@ -232,23 +216,18 @@ export default function PengelolaEvent() {
         throw new Error(errorData.error || "Failed to add event");
       }
 
-      await fetchEvents();
       setOpenAddDialog(false);
       toast.success("Event berhasil ditambahkan");
       if (addFormRef.current) addFormRef.current.reset();
       setPreviewImage(null);
     } catch (error) {
       console.error("Error adding event:", error);
-      setFormError(
+      const message =
         error instanceof Error
           ? error.message
-          : "Gagal menambahkan event. Silakan coba lagi."
-      );
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Gagal menambahkan event. Silakan coba lagi."
-      );
+          : "Gagal menambahkan event. Silakan coba lagi.";
+      setFormError(message);
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
       setUploadProgress(0);
@@ -265,9 +244,10 @@ export default function PengelolaEvent() {
 
     try {
       const formData = new FormData(e.currentTarget);
-
       // Check if a new image was selected
-      const imageFile = e.currentTarget.images.files[0];
+      const imageFile = (
+        e.currentTarget.elements.namedItem("images") as HTMLInputElement
+      )?.files?.[0];
       if (!imageFile) {
         // If no new image was selected, remove the images field from formData
         formData.delete("images");
@@ -297,22 +277,17 @@ export default function PengelolaEvent() {
         throw new Error(errorData.error || "Failed to update event");
       }
 
-      await fetchEvents();
       setOpenEditDialog(false);
       toast.success("Event berhasil diperbarui");
       setPreviewImage(null);
     } catch (error) {
       console.error("Error updating event:", error);
-      setFormError(
+      const message =
         error instanceof Error
           ? error.message
-          : "Gagal memperbarui event. Silakan coba lagi."
-      );
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Gagal memperbarui event. Silakan coba lagi."
-      );
+          : "Gagal memperbarui event. Silakan coba lagi.";
+      setFormError(message);
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
       setUploadProgress(0);
@@ -338,15 +313,14 @@ export default function PengelolaEvent() {
         throw new Error(errorData.error || "Failed to delete event");
       }
 
-      await fetchEvents();
       toast.success("Event berhasil dihapus");
     } catch (error) {
       console.error("Error deleting event:", error);
-      toast.error(
+      const message =
         error instanceof Error
           ? error.message
-          : "Gagal menghapus event. Silakan coba lagi."
-      );
+          : "Gagal menghapus event. Silakan coba lagi.";
+      toast.error(message);
     } finally {
       setOpenDeleteDialog(false);
       setEventToDelete(null);
@@ -408,13 +382,54 @@ export default function PengelolaEvent() {
   };
 
   const getVerifiedCount = () => {
-    return eventData.filter((event) => event.isVerified).length;
+    return eventData.filter((event: Event) => event.isVerified).length;
   };
 
   const getUnverifiedCount = () => {
-    return eventData.filter((event) => !event.isVerified).length;
+    return eventData.filter((event: Event) => !event.isVerified).length;
   };
 
+  const handleRetry = () => {
+    mutate();
+  };
+
+  // Error state
+  if (error) {
+    return (
+      <div className="container py-10 mx-auto space-y-8">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary/70">
+              Event
+            </h1>
+            <p className="mt-2 text-muted-foreground">
+              Kelola event wisata dalam satu tempat
+            </p>
+          </div>
+        </div>
+
+        <Alert variant="destructive">
+          <AlertCircle className="w-4 h-4" />
+          <AlertDescription className="flex items-center justify-between">
+            <span>
+              Gagal memuat data event.{" "}
+              {error.message || "Terjadi kesalahan pada server."}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRetry}
+              className="ml-4 bg-transparent">
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Coba Lagi
+            </Button>
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  // Loading state
   if (isLoading) {
     return (
       <div className="container py-10 mx-auto space-y-8">
@@ -528,7 +543,6 @@ export default function PengelolaEvent() {
                           </div>
                         </div>
                       </div>
-
                       {previewImage && (
                         <div className="relative overflow-hidden border rounded-md aspect-video">
                           <Image
@@ -591,7 +605,7 @@ export default function PengelolaEvent() {
                           </SelectItem>
                         ) : (
                           Array.isArray(wisataList) &&
-                          wisataList.map((wisata) => (
+                          wisataList.map((wisata: Wisata) => (
                             <SelectItem
                               key={wisata.id}
                               value={wisata.id.toString()}>
@@ -603,6 +617,13 @@ export default function PengelolaEvent() {
                     </Select>
                   </div>
                 </div>
+
+                {formError && (
+                  <div className="p-3 mb-4 text-sm text-red-600 border border-red-200 rounded-md bg-red-50">
+                    {formError}
+                  </div>
+                )}
+
                 {isSubmitting && (
                   <div className="mb-4">
                     <Label className="mb-1.5 block">Mengunggah...</Label>
@@ -612,6 +633,7 @@ export default function PengelolaEvent() {
                     />
                   </div>
                 )}
+
                 <DialogFooter>
                   <Button
                     variant="outline"
@@ -636,6 +658,7 @@ export default function PengelolaEvent() {
           </Dialog>
         </div>
       </div>
+
       <div className="flex flex-col items-start justify-between gap-4 mb-8 sm:flex-row sm:items-center">
         <div className="inline-flex p-1 rounded-lg shadow-sm bg-muted/60 backdrop-blur-sm">
           <button
@@ -696,9 +719,8 @@ export default function PengelolaEvent() {
               </p>
             </div>
           ) : (
-            filteredEvents.map((event) => {
+            filteredEvents.map((event: Event) => {
               const { status, color } = getEventStatus(event);
-
               return (
                 <div
                   key={event.id}
@@ -714,7 +736,6 @@ export default function PengelolaEvent() {
                         {event.title.substring(0, 2).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
-
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <h4 className="font-medium truncate">{event.title}</h4>
@@ -739,11 +760,9 @@ export default function PengelolaEvent() {
                           {status}
                         </Badge>
                       </div>
-
                       <p className="text-sm text-muted-foreground line-clamp-2">
                         {event.description}
                       </p>
-
                       <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-muted-foreground">
                         {event.wisata && (
                           <span className="flex items-center">
@@ -776,7 +795,6 @@ export default function PengelolaEvent() {
                           <TooltipContent>Edit</TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
-
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -864,7 +882,6 @@ export default function PengelolaEvent() {
                         </div>
                       </div>
                     </div>
-
                     {previewImage && (
                       <div className="relative overflow-hidden border rounded-md aspect-video">
                         <Image
@@ -930,7 +947,7 @@ export default function PengelolaEvent() {
                         </SelectItem>
                       ) : (
                         Array.isArray(wisataList) &&
-                        wisataList.map((wisata) => (
+                        wisataList.map((wisata: Wisata) => (
                           <SelectItem
                             key={wisata.id}
                             value={wisata.id.toString()}>
@@ -942,6 +959,13 @@ export default function PengelolaEvent() {
                   </Select>
                 </div>
               </div>
+
+              {formError && (
+                <div className="p-3 mb-4 text-sm text-red-600 border border-red-200 rounded-md bg-red-50">
+                  {formError}
+                </div>
+              )}
+
               {isSubmitting && (
                 <div className="mb-4">
                   <Label className="mb-1.5 block">Mengunggah...</Label>
@@ -951,6 +975,7 @@ export default function PengelolaEvent() {
                   />
                 </div>
               )}
+
               <DialogFooter>
                 <Button
                   variant="outline"
@@ -973,6 +998,7 @@ export default function PengelolaEvent() {
           )}
         </DialogContent>
       </Dialog>
+
       <DeleteConfirmationDialog
         isOpen={openDeleteDialog}
         onClose={() => setOpenDeleteDialog(false)}

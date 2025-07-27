@@ -1,11 +1,8 @@
 "use client";
 
-import { DialogFooter } from "@/components/ui/dialog";
-
-import { DialogTrigger } from "@/components/ui/dialog";
-
 import type React from "react";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
+import useSWR from "swr";
 import {
   PlusCircle,
   Search,
@@ -27,8 +24,10 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
@@ -41,12 +40,10 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { LoadingCards } from "@/components/ui/loading-spinner";
-import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import Image from "next/image";
 import { PengelolaPdfButton } from "../export/pengelola/Button";
-import { mutate } from "swr";
 
 interface Pengelola {
   id: number;
@@ -65,16 +62,99 @@ interface Pengelola {
   } | null;
 }
 
+interface ApiResponse {
+  success: boolean;
+  data: {
+    pengelola: Pengelola[];
+  };
+  message?: string;
+}
+
+interface DeleteConfirmationDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  title: string;
+  description: string;
+  itemName?: string;
+}
+
+// SWR fetcher function
+const fetcher = async (url: string): Promise<Pengelola[]> => {
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    if (response.status === 401) {
+      throw new Error(errorData.message || "Autentikasi diperlukan");
+    } else {
+      throw new Error(errorData.message || "Failed to fetch pengelola data");
+    }
+  }
+
+  const data: ApiResponse = await response.json();
+  return data.data?.pengelola || [];
+};
+
+const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  title,
+  description,
+  itemName,
+}) => {
+  return (
+    <Dialog
+      open={isOpen}
+      onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>
+            {description}
+            {itemName && <span className="font-medium">"{itemName}"</span>}?
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={onClose}>
+            Batal
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            onClick={onConfirm}>
+            Hapus
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 export default function PengelolaPage() {
+  // SWR hook for data fetching
+  const {
+    data: pengelolaData = [],
+    error,
+    isLoading,
+    mutate: mutatePengelola,
+  } = useSWR<Pengelola[]>("/api/pengelola", fetcher, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: true,
+    dedupingInterval: 5000,
+  });
+
   const [openAddDialog, setOpenAddDialog] = useState(false);
   const [openEditDialog, setOpenEditDialog] = useState(false);
   const [selectedPengelola, setSelectedPengelola] = useState<Pengelola | null>(
     null
   );
   const [searchTerm, setSearchTerm] = useState("");
-  const [pengelolaData, setPengelolaData] = useState<Pengelola[]>([]);
   const [filteredPengelola, setFilteredPengelola] = useState<Pengelola[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [pengelolaToDelete, setPengelolaToDelete] = useState<Pengelola | null>(
@@ -90,37 +170,7 @@ export default function PengelolaPage() {
   const addFormRef = useRef<HTMLFormElement>(null);
   const editFormRef = useRef<HTMLFormElement>(null);
 
-  const fetchPengelola = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const response = await fetch("/api/pengelola");
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        if (response.status === 401) {
-          handleAuthError(errorData);
-        } else {
-          throw new Error(
-            errorData.message || "Failed to fetch pengelola data"
-          );
-        }
-      }
-
-      const data = await response.json();
-      // Update to handle the correct API response structure
-      setPengelolaData(data.data?.pengelola || []);
-      setFilteredPengelola(data.data?.pengelola || []);
-    } catch (error) {
-      handleAuthError(error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchPengelola();
-  }, [fetchPengelola]);
-
+  // Filter pengelola data based on search term and active tab
   useEffect(() => {
     if (pengelolaData.length > 0) {
       let filtered = pengelolaData;
@@ -146,6 +196,13 @@ export default function PengelolaPage() {
     }
   }, [searchTerm, pengelolaData, activeTab]);
 
+  // Show error toast when SWR error occurs
+  useEffect(() => {
+    if (error) {
+      handleAuthError(error);
+    }
+  }, [error]);
+
   const handleImageChange = (
     e: React.ChangeEvent<HTMLInputElement>,
     isEdit = false
@@ -170,7 +227,6 @@ export default function PengelolaPage() {
     }
   };
 
-  // Update the handleAddPengelola function to use the correct API path
   const handleAddPengelola = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -205,11 +261,25 @@ export default function PengelolaPage() {
         });
       }, 500);
 
+      // Create temporary pengelola for optimistic update
+      const tempPengelola: Pengelola = {
+        id: Date.now(), // temporary ID
+        name: formData.get("name") as string,
+        email: formData.get("email") as string,
+        notelp: formData.get("noTelepon") as string,
+        isVerified: false,
+        image: previewImage,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      // Optimistic update
+      mutatePengelola([...pengelolaData, tempPengelola], false);
+
       const response = await fetch("/api/pengelola", {
         method: "POST",
         body: formData,
       });
-      mutate("/api/pengelola");
 
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -220,30 +290,30 @@ export default function PengelolaPage() {
         throw new Error(result.message || "Gagal menambahkan pengelola");
       }
 
-      await fetchPengelola();
+      // Revalidate data from server
+      mutatePengelola();
+
       setOpenAddDialog(false);
       setPreviewImage(null);
       if (addFormRef.current) addFormRef.current.reset();
       toast.success("Pengelola berhasil ditambahkan");
     } catch (error) {
       console.error("Error adding pengelola:", error);
-      setFormError(
+      const message =
         error instanceof Error
           ? error.message
-          : "Gagal menambahkan pengelola. Silakan coba lagi."
-      );
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Gagal menambahkan pengelola. Silakan coba lagi."
-      );
+          : "Gagal menambahkan pengelola. Silakan coba lagi.";
+      setFormError(message);
+      toast.error(message);
+
+      // Revert optimistic update on error
+      mutatePengelola();
     } finally {
       setIsSubmitting(false);
       setUploadProgress(0);
     }
   };
 
-  // Update the handleEditPengelola function to use the correct API path
   const handleEditPengelola = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!selectedPengelola) return;
@@ -261,12 +331,12 @@ export default function PengelolaPage() {
         throw new Error("Kata sandi harus minimal 8 karakter");
       }
 
-      const pengelolaData = {
+      const pengelolaUpdateData = {
         id: selectedPengelola.id,
         name: formData.get("name") as string,
         email: formData.get("email") as string,
         notelp: formData.get("notelp") as string,
-        password: password || undefined, // Only include password if it's not empty
+        password: password || undefined,
         isVerified: formData.get("isVerified") === "on",
       };
 
@@ -278,14 +348,30 @@ export default function PengelolaPage() {
         });
       }, 500);
 
+      // Optimistic update
+      const updatedPengelola: Pengelola = {
+        ...selectedPengelola,
+        name: pengelolaUpdateData.name,
+        email: pengelolaUpdateData.email,
+        notelp: pengelolaUpdateData.notelp,
+        isVerified: pengelolaUpdateData.isVerified,
+        updatedAt: new Date().toISOString(),
+      };
+
+      mutatePengelola(
+        pengelolaData.map((p: Pengelola) =>
+          p.id === selectedPengelola.id ? updatedPengelola : p
+        ),
+        false
+      );
+
       const response = await fetch("/api/pengelola", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(pengelolaData),
+        body: JSON.stringify(pengelolaUpdateData),
       });
-      mutate("/api/pengelola");
 
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -300,13 +386,18 @@ export default function PengelolaPage() {
         }
       }
 
-      await fetchPengelola();
+      // Revalidate data from server
+      mutatePengelola();
+
       setOpenEditDialog(false);
       setPreviewImage(null);
       toast.success("Pengelola berhasil diperbarui");
     } catch (error) {
       console.error("Error updating pengelola:", error);
       handleAuthError(error);
+
+      // Revert optimistic update on error
+      mutatePengelola();
     } finally {
       setIsSubmitting(false);
       setUploadProgress(0);
@@ -318,11 +409,16 @@ export default function PengelolaPage() {
     setOpenDeleteDialog(true);
   };
 
-  // Update the confirmDelete function to use the correct API path
   const confirmDelete = async () => {
     if (!pengelolaToDelete) return;
 
     try {
+      // Optimistic update - remove item immediately
+      mutatePengelola(
+        pengelolaData.filter((p) => p.id !== pengelolaToDelete.id),
+        false
+      );
+
       const response = await fetch("/api/pengelola", {
         method: "DELETE",
         headers: {
@@ -330,7 +426,6 @@ export default function PengelolaPage() {
         },
         body: JSON.stringify({ id: pengelolaToDelete.id }),
       });
-      mutate("/api/pengelola");
 
       const result = await response.json();
 
@@ -342,11 +437,16 @@ export default function PengelolaPage() {
         }
       }
 
-      await fetchPengelola();
+      // Revalidate data from server
+      mutatePengelola();
+
       toast.success("Pengelola berhasil dihapus");
     } catch (error) {
       console.error("Error deleting pengelola:", error);
       handleAuthError(error);
+
+      // Revert optimistic update on error
+      mutatePengelola();
     } finally {
       setOpenDeleteDialog(false);
       setPengelolaToDelete(null);
@@ -359,7 +459,6 @@ export default function PengelolaPage() {
     setOpenEditDialog(true);
   };
 
-  // Update the handleVerificationToggle function to use the correct API path
   const handleVerificationToggle = async (pengelola: Pengelola) => {
     // If already verified, show info message that API doesn't support unverifying
     if (pengelola.isVerified) {
@@ -368,10 +467,17 @@ export default function PengelolaPage() {
     }
 
     try {
-      // Show loading toast
       const toastId = toast.loading("Memverifikasi pengelola...");
 
-      // Call the verification API endpoint
+      // Optimistic update
+      const updatedPengelola = { ...pengelola, isVerified: true };
+      mutatePengelola(
+        pengelolaData.map((p) =>
+          p.id === pengelola.id ? updatedPengelola : p
+        ),
+        false
+      );
+
       const response = await fetch(`/api/pengelola`, {
         method: "PUT",
         headers: {
@@ -382,7 +488,6 @@ export default function PengelolaPage() {
           isVerified: true,
         }),
       });
-      mutate("/api/pengelola");
 
       const result = await response.json();
 
@@ -396,25 +501,17 @@ export default function PengelolaPage() {
         }
       }
 
-      // Update local state with the updated data from the API
-      const updatedPengelola = result.data;
-      const updatedData = pengelolaData.map((p) =>
-        p.id === pengelola.id ? updatedPengelola : p
-      );
+      // Revalidate data from server
+      mutatePengelola();
 
-      setPengelolaData(updatedData);
-      setFilteredPengelola(
-        filteredPengelola.map((p) =>
-          p.id === pengelola.id ? updatedPengelola : p
-        )
-      );
-
-      // Dismiss loading toast and show success toast
       toast.dismiss(toastId);
       toast.success("Pengelola berhasil diverifikasi");
     } catch (error) {
       console.error("Error verifying pengelola:", error);
       handleAuthError(error);
+
+      // Revert optimistic update on error
+      mutatePengelola();
     }
   };
 
@@ -433,8 +530,6 @@ export default function PengelolaPage() {
   const handleAuthError = (error: any) => {
     if (error.message && error.message.includes("Autentikasi diperlukan")) {
       toast.error("Anda tidak memiliki izin untuk mengakses halaman ini");
-      // Redirect to login page or show authentication dialog
-      // window.location.href = "/login"
     } else {
       toast.error(
         error instanceof Error
@@ -444,6 +539,7 @@ export default function PengelolaPage() {
     }
   };
 
+  // Show loading state
   if (isLoading) {
     return (
       <div className="container py-10 mx-auto space-y-8">
@@ -454,6 +550,28 @@ export default function PengelolaPage() {
           </div>
         </div>
         <LoadingCards />
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="container py-10 mx-auto">
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <div className="text-lg font-medium text-red-600">
+            Error loading data
+          </div>
+          <p className="max-w-md mt-2 text-sm text-muted-foreground">
+            {error.message}
+          </p>
+          <Button
+            onClick={() => mutatePengelola()}
+            className="mt-4"
+            variant="outline">
+            Retry
+          </Button>
+        </div>
       </div>
     );
   }
@@ -698,10 +816,14 @@ export default function PengelolaPage() {
                   <Avatar className="flex-shrink-0 w-16 h-16 rounded-md">
                     <AvatarFallback className="rounded-md bg-primary/10 text-primary">
                       <Image
-                        src={pengelola.image || "/avatar-placeholder.png"}
+                        src={
+                          pengelola.image ||
+                          "/placeholder.svg?height=64&width=64"
+                        }
                         width={64}
                         height={64}
                         alt={pengelola.name}
+                        className="object-cover w-full h-full rounded-md"
                       />
                     </AvatarFallback>
                   </Avatar>
@@ -789,7 +911,7 @@ export default function PengelolaPage() {
                           <Button
                             variant="outline"
                             size="icon"
-                            className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                            className="text-blue-600 bg-transparent border-blue-200 hover:bg-blue-50"
                             onClick={() => handleEdit(pengelola)}>
                             <Pencil className="w-4 h-4" />
                             <span className="sr-only">Edit</span>
@@ -807,7 +929,7 @@ export default function PengelolaPage() {
                           <Button
                             variant="outline"
                             size="icon"
-                            className="text-red-600 border-red-200 hover:bg-red-50"
+                            className="text-red-600 bg-transparent border-red-200 hover:bg-red-50"
                             onClick={() => handleDelete(pengelola)}>
                             <Trash2 className="w-4 h-4" />
                             <span className="sr-only">Delete</span>
@@ -826,6 +948,7 @@ export default function PengelolaPage() {
         </div>
       </Card>
 
+      {/* Edit Dialog */}
       <Dialog
         open={openEditDialog}
         onOpenChange={setOpenEditDialog}>
@@ -980,6 +1103,7 @@ export default function PengelolaPage() {
           )}
         </DialogContent>
       </Dialog>
+
       <DeleteConfirmationDialog
         isOpen={openDeleteDialog}
         onClose={() => setOpenDeleteDialog(false)}

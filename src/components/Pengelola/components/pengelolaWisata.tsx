@@ -2,7 +2,7 @@
 
 import { DialogTrigger } from "@/components/ui/dialog";
 import type React from "react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import {
   Landmark,
   PlusCircle,
@@ -17,6 +17,8 @@ import {
   X,
   Clock,
   DollarSign,
+  AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
@@ -51,16 +53,19 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { LoadingCards } from "@/components/ui/loading-spinner";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import Image from "next/image";
 import MapLocationPicker from "./map-location-picker";
-import { mutate } from "swr";
+import useSWR from "swr";
+
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 interface Wisata {
   id: number;
   name: string;
   description: string;
   location: string;
-  type: string | null;
+  type: string;
   latitude: number;
   longitude: number;
   images: string[];
@@ -127,9 +132,7 @@ export default function WisataPage() {
   const [openEditDialog, setOpenEditDialog] = useState(false);
   const [selectedWisata, setSelectedWisata] = useState<Wisata | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [wisataData, setWisataData] = useState<Wisata[]>([]);
   const [filteredWisata, setFilteredWisata] = useState<Wisata[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [previewImages, setPreviewImages] = useState<string[]>([]);
   const [editPreviewImages, setEditPreviewImages] = useState<string[]>([]);
@@ -152,23 +155,22 @@ export default function WisataPage() {
   const addFormRef = useRef<HTMLFormElement>(null);
   const editFormRef = useRef<HTMLFormElement>(null);
 
-  useEffect(() => {
-    fetchWisata();
-  }, []);
+  const { data, error, isLoading, mutate } = useSWR("/api/wisata", fetcher);
+  const wisataData: Wisata[] = useMemo(() => data?.data || [], [data?.data]);
 
   useEffect(() => {
-    if (wisataData.length > 0) {
+    if (wisataData && wisataData.length > 0) {
       let filtered = wisataData;
 
       if (activeTab === "verified") {
-        filtered = filtered.filter((wisata) => wisata.isVerified);
+        filtered = filtered.filter((wisata: Wisata) => wisata.isVerified);
       } else if (activeTab === "unverified") {
-        filtered = filtered.filter((wisata) => !wisata.isVerified);
+        filtered = filtered.filter((wisata: Wisata) => !wisata.isVerified);
       }
 
       if (searchTerm) {
         filtered = filtered.filter(
-          (wisata) =>
+          (wisata: Wisata) =>
             wisata.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             wisata.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
             (wisata.type &&
@@ -179,33 +181,6 @@ export default function WisataPage() {
       setFilteredWisata(filtered);
     }
   }, [searchTerm, wisataData, activeTab]);
-
-  const fetchWisata = async () => {
-    setIsLoading(true);
-    try {
-      const response = await fetch("/api/wisata");
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-
-      if (result.success && Array.isArray(result.data)) {
-        setWisataData(result.data);
-        setFilteredWisata(result.data);
-      } else {
-        throw new Error("Invalid response format");
-      }
-    } catch (error) {
-      console.error("Error fetching wisata:", error);
-      toast.error("Gagal memuat data wisata. Silakan coba lagi.");
-      setWisataData([]);
-      setFilteredWisata([]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleImageChange = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -280,8 +255,6 @@ export default function WisataPage() {
         const errorData = await response.json();
         throw new Error(errorData.error || "Gagal menambahkan wisata");
       }
-
-      await fetchWisata(); // Refresh data
       setOpenAddDialog(false);
       setPreviewImages([]);
       setSelectedLatitude(-6.2);
@@ -339,7 +312,6 @@ export default function WisataPage() {
         throw new Error(errorData.error || "Gagal memperbarui wisata");
       }
 
-      await fetchWisata(); // Refresh data
       setOpenEditDialog(false);
       setEditPreviewImages([]);
       toast.success("Wisata berhasil diperbarui");
@@ -376,7 +348,6 @@ export default function WisataPage() {
         throw new Error(errorData.error || "Gagal menghapus wisata");
       }
 
-      await fetchWisata(); // Refresh data
       toast.success("Wisata berhasil dihapus");
     } catch (error) {
       console.error("Error deleting wisata:", error);
@@ -401,13 +372,54 @@ export default function WisataPage() {
   };
 
   const getVerifiedCount = () => {
-    return wisataData.filter((wisata) => wisata.isVerified).length;
+    return wisataData.filter((wisata: Wisata) => wisata.isVerified).length;
   };
 
   const getUnverifiedCount = () => {
-    return wisataData.filter((wisata) => !wisata.isVerified).length;
+    return wisataData.filter((wisata: Wisata) => !wisata.isVerified).length;
   };
 
+  const handleRetry = () => {
+    mutate();
+  };
+
+  // Error state
+  if (error) {
+    return (
+      <div className="container py-10 mx-auto space-y-8">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary/70">
+              Wisata
+            </h1>
+            <p className="mt-2 text-muted-foreground">
+              Kelola destinasi wisata dalam satu tempat
+            </p>
+          </div>
+        </div>
+
+        <Alert variant="destructive">
+          <AlertCircle className="w-4 h-4" />
+          <AlertDescription className="flex items-center justify-between">
+            <span>
+              Gagal memuat data wisata.{" "}
+              {error.message || "Terjadi kesalahan pada server."}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRetry}
+              className="ml-4 bg-transparent">
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Coba Lagi
+            </Button>
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  // Loading state
   if (isLoading) {
     return (
       <div className="container py-10 mx-auto space-y-8">
@@ -801,7 +813,7 @@ export default function WisataPage() {
               </p>
             </div>
           ) : (
-            filteredWisata.map((wisata) => (
+            filteredWisata.map((wisata: Wisata) => (
               <div
                 key={wisata.id}
                 className="p-4 transition-colors hover:bg-muted/30">
@@ -980,11 +992,11 @@ export default function WisataPage() {
                       <Label
                         htmlFor="edit-type"
                         className="text-sm font-medium">
-                        Tipe
+                        Tipe Wisata
                       </Label>
                       <Select
                         name="type"
-                        defaultValue={selectedWisata.type || undefined}>
+                        defaultValue={selectedWisata.type}>
                         <SelectTrigger className="w-full">
                           <SelectValue placeholder="Pilih tipe wisata" />
                         </SelectTrigger>
@@ -992,7 +1004,6 @@ export default function WisataPage() {
                           <SelectItem value="geologi">Geologi</SelectItem>
                           <SelectItem value="biologi">Biologi</SelectItem>
                           <SelectItem value="budaya">Budaya</SelectItem>
-                          <SelectItem value="pantai">Pantai</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>

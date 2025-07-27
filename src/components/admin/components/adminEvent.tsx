@@ -1,11 +1,8 @@
 "use client";
 
-import { DialogTrigger } from "@/components/ui/dialog";
-
 import type React from "react";
-
-import { mutate } from "swr";
 import { useState, useEffect, useRef } from "react";
+import useSWR from "swr";
 import {
   PlusCircle,
   Search,
@@ -30,6 +27,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -50,7 +48,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LoadingCards } from "@/components/ui/loading-spinner";
-import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { Progress } from "@/components/ui/progress";
 import Image from "next/image";
 import { EventPdfButton } from "../export/event/Button";
@@ -85,16 +82,127 @@ interface Wisata {
   name: string;
 }
 
+interface DeleteConfirmationDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  title: string;
+  description: string;
+  itemName?: string;
+}
+
+// SWR fetcher function for events
+const eventFetcher = async (url: string): Promise<Event[]> => {
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    let errorMessage = `Server error: ${response.status} ${response.statusText}`;
+    try {
+      const errorData = await response.json();
+      errorMessage = errorData.error || errorMessage;
+    } catch (parseError) {
+      console.error("Error parsing error response:", parseError);
+    }
+    throw new Error(errorMessage);
+  }
+
+  const data = await response.json();
+  return Array.isArray(data) ? data : [];
+};
+
+// SWR fetcher function for wisata list
+const wisataFetcher = async (url: string): Promise<Wisata[]> => {
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch wisata data");
+  }
+
+  const data = await response.json();
+
+  // Handle different response formats
+  if (Array.isArray(data)) {
+    return data;
+  } else if (data.data && Array.isArray(data.data)) {
+    return data.data;
+  } else if (data.wisata && Array.isArray(data.wisata)) {
+    return data.wisata;
+  } else if (data.success && data.data && Array.isArray(data.data)) {
+    return data.data;
+  } else {
+    console.error("Unexpected API response format:", data);
+    return [];
+  }
+};
+
+const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  title,
+  description,
+  itemName,
+}) => {
+  return (
+    <Dialog
+      open={isOpen}
+      onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>
+            {description}
+            {itemName && <span className="font-medium">"{itemName}"</span>}?
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={onClose}>
+            Batal
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            onClick={onConfirm}>
+            Hapus
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 export default function EventPage() {
+  // SWR hooks for data fetching
+  const {
+    data: eventData = [],
+    error: eventError,
+    isLoading: isLoadingEvents,
+    mutate: mutateEvents,
+  } = useSWR<Event[]>("/api/event", eventFetcher, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: true,
+    dedupingInterval: 5000,
+  });
+
+  const {
+    data: wisataList = [],
+    error: wisataError,
+    isLoading: isLoadingWisata,
+  } = useSWR<Wisata[]>("/api/wisata", wisataFetcher, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: true,
+    dedupingInterval: 10000,
+  });
+
   const [openAddDialog, setOpenAddDialog] = useState(false);
   const [openEditDialog, setOpenEditDialog] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [eventData, setEventData] = useState<Event[]>([]);
   const [filteredEvents, setFilteredEvents] = useState<Event[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [wisataList, setWisataList] = useState<Wisata[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [eventToDelete, setEventToDelete] = useState<Event | null>(null);
@@ -107,11 +215,7 @@ export default function EventPage() {
   const addFormRef = useRef<HTMLFormElement>(null);
   const editFormRef = useRef<HTMLFormElement>(null);
 
-  useEffect(() => {
-    fetchEvents();
-    fetchWisataList();
-  }, []);
-
+  // Filter events based on search term and active tab
   useEffect(() => {
     if (eventData.length > 0) {
       let filtered = eventData;
@@ -137,55 +241,25 @@ export default function EventPage() {
                 .includes(searchTerm.toLowerCase()))
         );
       }
+
       setFilteredEvents(filtered);
     }
   }, [searchTerm, eventData, activeTab]);
 
-  const fetchEvents = async () => {
-    setIsLoading(true);
-    try {
-      const response = await fetch("/api/event");
-      if (!response.ok) {
-        throw new Error("Failed to fetch event data");
-      }
-
-      const data = await response.json();
-      setEventData(data);
-      setFilteredEvents(data);
-    } catch (error) {
-      console.error("Error fetching events:", error);
-      toast.error("Gagal memuat data event. Silakan coba lagi.");
-    } finally {
-      setIsLoading(false);
+  // Show error toast when SWR error occurs
+  useEffect(() => {
+    if (eventError) {
+      toast.error(
+        eventError.message || "Gagal memuat data event. Silakan coba lagi."
+      );
     }
-  };
+  }, [eventError]);
 
-  // Update the fetchWisataList function to properly handle the API response structure
-  const fetchWisataList = async () => {
-    try {
-      const response = await fetch("/api/wisata");
-      if (!response.ok) {
-        throw new Error("Failed to fetch wisata data");
-      }
-      const data = await response.json();
-
-      // Check if data is an array directly or if it's nested in a property
-      if (Array.isArray(data)) {
-        setWisataList(data);
-      } else if (data.data && Array.isArray(data.data)) {
-        setWisataList(data.data);
-      } else if (data.wisata && Array.isArray(data.wisata)) {
-        setWisataList(data.wisata);
-      } else {
-        // If we can't find an array, set an empty array
-        console.error("Unexpected API response format:", data);
-        setWisataList([]);
-      }
-    } catch (error) {
-      console.error("Error fetching wisata list:", error);
+  useEffect(() => {
+    if (wisataError) {
       toast.error("Gagal memuat daftar wisata. Silakan coba lagi.");
     }
-  };
+  }, [wisataError]);
 
   const handleImageChange = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -210,6 +284,26 @@ export default function EventPage() {
     try {
       const formData = new FormData(e.currentTarget);
 
+      // Create temporary event for optimistic update
+      const tempEvent: Event = {
+        id: Date.now(), // temporary ID
+        title: formData.get("title") as string,
+        description: formData.get("description") as string,
+        image: previewImage || "",
+        startDate: formData.get("startDate") as string,
+        endDate: formData.get("endDate") as string,
+        wisataId: Number(formData.get("wisataId")),
+        isVerified: false,
+        wisata: wisataList.find(
+          (w) => w.id === Number(formData.get("wisataId"))
+        ),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      // Optimistic update
+      mutateEvents([...eventData, tempEvent], false);
+
       const progressInterval = setInterval(() => {
         setUploadProgress((prevProgress) => {
           if (prevProgress >= 95) {
@@ -224,7 +318,6 @@ export default function EventPage() {
         method: "POST",
         body: formData,
       });
-      mutate("/api/event");
 
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -234,23 +327,24 @@ export default function EventPage() {
         throw new Error(errorData.error || "Failed to add event");
       }
 
-      await fetchEvents();
+      // Revalidate data from server
+      mutateEvents();
+
       setOpenAddDialog(false);
       toast.success("Event berhasil ditambahkan");
       if (addFormRef.current) addFormRef.current.reset();
       setPreviewImage(null);
     } catch (error) {
       console.error("Error adding event:", error);
-      setFormError(
+      const message =
         error instanceof Error
           ? error.message
-          : "Gagal menambahkan event. Silakan coba lagi."
-      );
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Gagal menambahkan event. Silakan coba lagi."
-      );
+          : "Gagal menambahkan event. Silakan coba lagi.";
+      setFormError(message);
+      toast.error(message);
+
+      // Revert optimistic update on error
+      mutateEvents();
     } finally {
       setIsSubmitting(false);
       setUploadProgress(0);
@@ -269,11 +363,34 @@ export default function EventPage() {
       const formData = new FormData(e.currentTarget);
 
       // Check if a new image was selected
-      const imageFile = e.currentTarget.images.files[0];
+      const imageFile = (
+        e.currentTarget.elements.namedItem("images") as HTMLInputElement
+      )?.files?.[0];
       if (!imageFile) {
         // If no new image was selected, remove the images field from formData
         formData.delete("images");
       }
+
+      // Optimistic update
+      const updatedEvent: Event = {
+        ...selectedEvent,
+        title: formData.get("title") as string,
+        description: formData.get("description") as string,
+        startDate: formData.get("startDate") as string,
+        endDate: formData.get("endDate") as string,
+        wisataId: Number(formData.get("wisataId")),
+        wisata: wisataList.find(
+          (w) => w.id === Number(formData.get("wisataId"))
+        ),
+        updatedAt: new Date().toISOString(),
+      };
+
+      mutateEvents(
+        eventData.map((event) =>
+          event.id === selectedEvent.id ? updatedEvent : event
+        ),
+        false
+      );
 
       const progressInterval = setInterval(() => {
         setUploadProgress((prevProgress) => {
@@ -289,7 +406,6 @@ export default function EventPage() {
         method: "PUT",
         body: formData,
       });
-      mutate("/api/event");
 
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -299,22 +415,23 @@ export default function EventPage() {
         throw new Error(errorData.error || "Failed to update event");
       }
 
-      await fetchEvents();
+      // Revalidate data from server
+      mutateEvents();
+
       setOpenEditDialog(false);
       toast.success("Event berhasil diperbarui");
       setPreviewImage(null);
     } catch (error) {
       console.error("Error updating event:", error);
-      setFormError(
+      const message =
         error instanceof Error
           ? error.message
-          : "Gagal memperbarui event. Silakan coba lagi."
-      );
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Gagal memperbarui event. Silakan coba lagi."
-      );
+          : "Gagal memperbarui event. Silakan coba lagi.";
+      setFormError(message);
+      toast.error(message);
+
+      // Revert optimistic update on error
+      mutateEvents();
     } finally {
       setIsSubmitting(false);
       setUploadProgress(0);
@@ -330,17 +447,24 @@ export default function EventPage() {
     if (!eventToDelete) return;
 
     try {
+      // Optimistic update - remove item immediately
+      mutateEvents(
+        eventData.filter((event) => event.id !== eventToDelete.id),
+        false
+      );
+
       const response = await fetch(`/api/event?id=${eventToDelete.id}`, {
         method: "DELETE",
       });
-      mutate("/api/event");
 
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || "Failed to delete event");
       }
 
-      await fetchEvents();
+      // Revalidate data from server
+      mutateEvents();
+
       toast.success("Event berhasil dihapus");
     } catch (error) {
       console.error("Error deleting event:", error);
@@ -349,6 +473,9 @@ export default function EventPage() {
           ? error.message
           : "Gagal menghapus event. Silakan coba lagi."
       );
+
+      // Revert optimistic update on error
+      mutateEvents();
     } finally {
       setOpenDeleteDialog(false);
       setEventToDelete(null);
@@ -360,6 +487,80 @@ export default function EventPage() {
     setFormError(null);
     setPreviewImage(event.image);
     setOpenEditDialog(true);
+  };
+
+  const handleVerificationToggle = async (event: Event) => {
+    try {
+      // Determine the new verification status (opposite of current)
+      const newVerificationStatus = !event.isVerified;
+
+      // Show appropriate loading toast
+      const actionText = newVerificationStatus
+        ? "Memverifikasi"
+        : "Membatalkan verifikasi";
+      const loadingToast = toast.loading(`${actionText} event...`);
+
+      // Optimistic update
+      const updatedEvent = { ...event, isVerified: newVerificationStatus };
+      mutateEvents(
+        eventData.map((e) => (e.id === event.id ? updatedEvent : e)),
+        false
+      );
+
+      // Call the API to update the event verification status
+      const response = await fetch(`/api/admin/event?id=${event.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ isVerified: newVerificationStatus }),
+      });
+
+      // Parse the response
+      const result = await response.json();
+
+      // Clear the loading toast
+      toast.dismiss(loadingToast);
+
+      // Handle the response
+      if (!response.ok) {
+        throw new Error(
+          result.error || `Gagal ${actionText.toLowerCase()} event`
+        );
+      }
+
+      // Revalidate data from server
+      mutateEvents();
+
+      // Show success message
+      toast.success(
+        result.message ||
+          `Event berhasil ${
+            newVerificationStatus ? "diverifikasi" : "dibatalkan verifikasinya"
+          }`
+      );
+    } catch (error) {
+      console.error("Error updating event verification:", error);
+
+      // Show error message
+      if (
+        error instanceof Error &&
+        error.message.includes("Autentikasi diperlukan")
+      ) {
+        toast.error(
+          "Anda tidak memiliki izin untuk mengubah status verifikasi event"
+        );
+      } else {
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Gagal mengubah status verifikasi event. Silakan coba lagi."
+        );
+      }
+
+      // Revert optimistic update on error
+      mutateEvents();
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -426,73 +627,8 @@ export default function EventPage() {
     return eventData.filter((event) => !event.isVerified).length;
   };
 
-  // Update this function to handle verification toggle
-  const handleVerificationToggle = async (event: Event) => {
-    try {
-      // Determine the new verification status (opposite of current)
-      const newVerificationStatus = !event.isVerified;
-
-      // Show appropriate loading toast
-      const actionText = newVerificationStatus
-        ? "Memverifikasi"
-        : "Membatalkan verifikasi";
-      const loadingToast = toast.loading(`${actionText} event...`);
-
-      // Call the API to update the event verification status
-      const response = await fetch(`/api/admin/event?id=${event.id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ isVerified: newVerificationStatus }),
-      });
-      mutate("/api/event");
-
-      // Parse the response
-      const result = await response.json();
-
-      // Clear the loading toast
-      toast.dismiss(loadingToast);
-
-      // Handle the response
-      if (!response.ok) {
-        throw new Error(
-          result.error || `Gagal ${actionText.toLowerCase()} event`
-        );
-      }
-
-      // Refresh the events list to get the updated data
-      await fetchEvents();
-
-      // Show success message
-      toast.success(
-        result.message ||
-          `Event berhasil ${
-            newVerificationStatus ? "diverifikasi" : "dibatalkan verifikasinya"
-          }`
-      );
-    } catch (error) {
-      console.error("Error updating event verification:", error);
-
-      // Show error message
-      if (
-        error instanceof Error &&
-        error.message.includes("Autentikasi diperlukan")
-      ) {
-        toast.error(
-          "Anda tidak memiliki izin untuk mengubah status verifikasi event"
-        );
-      } else {
-        toast.error(
-          error instanceof Error
-            ? error.message
-            : "Gagal mengubah status verifikasi event. Silakan coba lagi."
-        );
-      }
-    }
-  };
-
-  if (isLoading) {
+  // Show loading state
+  if (isLoadingEvents) {
     return (
       <div className="container py-10 mx-auto space-y-8">
         <div className="flex items-center justify-between">
@@ -502,6 +638,28 @@ export default function EventPage() {
           </div>
         </div>
         <LoadingCards />
+      </div>
+    );
+  }
+
+  // Show error state
+  if (eventError) {
+    return (
+      <div className="container py-10 mx-auto">
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <div className="text-lg font-medium text-red-600">
+            Error loading data
+          </div>
+          <p className="max-w-md mt-2 text-sm text-muted-foreground">
+            {eventError.message}
+          </p>
+          <Button
+            onClick={() => mutateEvents()}
+            className="mt-4"
+            variant="outline">
+            Retry
+          </Button>
+        </div>
       </div>
     );
   }
@@ -606,11 +764,10 @@ export default function EventPage() {
                           </div>
                         </div>
                       </div>
-
                       {previewImage && (
                         <div className="relative w-full overflow-hidden border rounded-md aspect-video">
                           <Image
-                            src={previewImage}
+                            src={previewImage || "/placeholder.svg"}
                             alt="Preview"
                             fill
                             className="object-cover"
@@ -660,14 +817,19 @@ export default function EventPage() {
                         <SelectValue placeholder="Pilih wisata" />
                       </SelectTrigger>
                       <SelectContent>
-                        {!wisataList || wisataList.length === 0 ? (
+                        {isLoadingWisata ? (
                           <SelectItem
                             value="loading"
                             disabled>
                             Memuat daftar wisata...
                           </SelectItem>
+                        ) : wisataList.length === 0 ? (
+                          <SelectItem
+                            value="empty"
+                            disabled>
+                            Tidak ada wisata tersedia
+                          </SelectItem>
                         ) : (
-                          Array.isArray(wisataList) &&
                           wisataList.map((wisata) => (
                             <SelectItem
                               key={wisata.id}
@@ -680,6 +842,11 @@ export default function EventPage() {
                     </Select>
                   </div>
                 </div>
+                {formError && (
+                  <div className="p-3 mb-4 text-sm text-red-600 border border-red-200 rounded-md bg-red-50">
+                    {formError}
+                  </div>
+                )}
                 {isSubmitting && (
                   <div className="mb-4">
                     <Label className="mb-1.5 block">Mengunggah...</Label>
@@ -713,6 +880,7 @@ export default function EventPage() {
           </Dialog>
         </div>
       </div>
+
       <div className="flex flex-col items-start justify-between gap-4 mb-8 sm:flex-row sm:items-center">
         <div className="inline-flex p-1 rounded-lg shadow-sm bg-muted/60 backdrop-blur-sm">
           <button
@@ -775,7 +943,6 @@ export default function EventPage() {
           ) : (
             filteredEvents.map((event) => {
               const { status, color } = getEventStatus(event);
-
               return (
                 <div
                   key={event.id}
@@ -791,7 +958,6 @@ export default function EventPage() {
                         {event.title.substring(0, 2).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
-
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <h4 className="font-medium truncate">{event.title}</h4>
@@ -816,11 +982,9 @@ export default function EventPage() {
                           {status}
                         </Badge>
                       </div>
-
                       <p className="text-sm text-muted-foreground line-clamp-2">
                         {event.description}
                       </p>
-
                       <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-muted-foreground">
                         {event.wisata && (
                           <span className="flex items-center">
@@ -838,7 +1002,6 @@ export default function EventPage() {
                         </span>
                       </div>
                     </div>
-
                     <div className="flex items-center gap-2">
                       <TooltipProvider>
                         <Tooltip>
@@ -874,14 +1037,13 @@ export default function EventPage() {
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
-
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Button
                               variant="outline"
                               size="icon"
-                              className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                              className="text-blue-600 bg-transparent border-blue-200 hover:bg-blue-50"
                               onClick={() => handleEdit(event)}>
                               <Pencil className="w-4 h-4" />
                               <span className="sr-only">Edit</span>
@@ -892,14 +1054,13 @@ export default function EventPage() {
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
-
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Button
                               variant="outline"
                               size="icon"
-                              className="text-red-600 border-red-200 hover:bg-red-50"
+                              className="text-red-600 bg-transparent border-red-200 hover:bg-red-50"
                               onClick={() => handleDelete(event)}>
                               <Trash2 className="w-4 h-4" />
                               <span className="sr-only">Delete</span>
@@ -919,6 +1080,7 @@ export default function EventPage() {
         </div>
       </Card>
 
+      {/* Edit Dialog */}
       <Dialog
         open={openEditDialog}
         onOpenChange={setOpenEditDialog}>
@@ -983,12 +1145,13 @@ export default function EventPage() {
                         </div>
                       </div>
                     </div>
-
                     {previewImage && (
                       <div className="relative overflow-hidden border rounded-md aspect-video">
                         <Image
                           src={previewImage || "/placeholder.svg"}
                           alt="Preview"
+                          width={400}
+                          height={225}
                           className="object-cover w-full h-full"
                         />
                       </div>
@@ -1039,14 +1202,19 @@ export default function EventPage() {
                       <SelectValue placeholder="Pilih wisata" />
                     </SelectTrigger>
                     <SelectContent>
-                      {!wisataList || wisataList.length === 0 ? (
+                      {isLoadingWisata ? (
                         <SelectItem
                           value="loading"
                           disabled>
                           Memuat daftar wisata...
                         </SelectItem>
+                      ) : wisataList.length === 0 ? (
+                        <SelectItem
+                          value="empty"
+                          disabled>
+                          Tidak ada wisata tersedia
+                        </SelectItem>
                       ) : (
-                        Array.isArray(wisataList) &&
                         wisataList.map((wisata) => (
                           <SelectItem
                             key={wisata.id}
@@ -1058,36 +1226,12 @@ export default function EventPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                {/* <div className="grid items-center grid-cols-4 gap-4">
-                  <Label
-                    htmlFor="edit-isVerified"
-                    className="text-right">
-                    Status Verifikasi
-                  </Label>
-                  <div className="flex items-center col-span-3 gap-2">
-                    <Switch
-                      id="edit-isVerified"
-                      name="isVerified"
-                      checked={selectedEvent?.isVerified || false}
-                      onCheckedChange={(checked) => {
-                        if (selectedEvent) {
-                          setSelectedEvent({
-                            ...selectedEvent,
-                            isVerified: checked,
-                          });
-                        }
-                      }}
-                    />
-                    <Label
-                      htmlFor="edit-isVerified"
-                      className="cursor-pointer">
-                      {selectedEvent?.isVerified
-                        ? "Terverifikasi"
-                        : "Belum Terverifikasi"}
-                    </Label>
-                  </div>
-                </div> */}
               </div>
+              {formError && (
+                <div className="p-3 mb-4 text-sm text-red-600 border border-red-200 rounded-md bg-red-50">
+                  {formError}
+                </div>
+              )}
               {isSubmitting && (
                 <div className="mb-4">
                   <Label className="mb-1.5 block">Mengunggah...</Label>
@@ -1119,6 +1263,7 @@ export default function EventPage() {
           )}
         </DialogContent>
       </Dialog>
+
       <DeleteConfirmationDialog
         isOpen={openDeleteDialog}
         onClose={() => setOpenDeleteDialog(false)}

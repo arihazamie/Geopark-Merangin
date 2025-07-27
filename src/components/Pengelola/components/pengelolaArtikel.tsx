@@ -2,7 +2,7 @@
 
 import { DialogTrigger } from "@/components/ui/dialog";
 import type React from "react";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import {
   PlusCircle,
   Search,
@@ -15,9 +15,12 @@ import {
   User,
   Calendar,
   Pencil,
+  AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -42,8 +45,11 @@ import { LoadingTable } from "@/components/ui/loading-spinner";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import Image from "next/image";
-import { mutate } from "swr";
+import useSWR from "swr";
+
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 interface Ulasan {
   id: number;
@@ -91,9 +97,7 @@ export default function PengelolaArtikel() {
   const [openEditDialog, setOpenEditDialog] = useState(false);
   const [selectedArtikel, setSelectedArtikel] = useState<Artikel | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [artikelData, setArtikelData] = useState<Artikel[]>([]);
   const [filteredArtikel, setFilteredArtikel] = useState<Artikel[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [artikelToDelete, setArtikelToDelete] = useState<Artikel | null>(null);
@@ -105,67 +109,35 @@ export default function PengelolaArtikel() {
     total: 0,
     totalPages: 1,
   });
-
-  // Add activeTab state after the other state declarations
   const [activeTab, setActiveTab] = useState<"all" | "verified" | "unverified">(
     "all"
   );
+  const [formError, setFormError] = useState<string | null>(null);
 
   const addFormRef = useRef<HTMLFormElement>(null);
   const editFormRef = useRef<HTMLFormElement>(null);
 
-  // Add a formError state to handle API errors
-  const [formError, setFormError] = useState<string | null>(null);
+  const { data, error, isLoading, mutate } = useSWR(
+    `/api/artikel?page=${pagination.page}&limit=${pagination.limit}`,
+    fetcher
+  );
+  const artikelData: Artikel[] = useMemo(() => data?.data || [], [data?.data]);
 
-  // Replace the fetchArtikel function with this implementation
-  const fetchArtikel = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const response = await fetch(
-        `/api/artikel?page=${pagination.page}&limit=${pagination.limit}`,
-        { cache: "no-store" } // Prevent caching of the GET request
-      );
-      if (!response.ok) {
-        throw new Error("Failed to fetch artikel data");
-      }
-      const data = await response.json();
-      console.log("Fetched Articles:", data.data);
-      setArtikelData(data.data);
-      setFilteredArtikel(data.data);
-      // Note: Pagination isn't implemented in the API, so this might need adjustment
-      setPagination((prev) => ({
-        ...prev,
-        total: data.data.length, // Temporary fix since API doesn't return pagination
-        totalPages: 1,
-      }));
-    } catch (error) {
-      console.error("Error fetching artikel:", error);
-      toast.error("Gagal memuat data artikel. Silakan coba lagi.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [pagination.page, pagination.limit]);
-
-  useEffect(() => {
-    fetchArtikel();
-  }, [fetchArtikel]); // Added fetchArtikel to the dependency array
-
-  // Update the useEffect for filtering to include tab filtering
   useEffect(() => {
     if (artikelData.length > 0) {
       let filtered = artikelData;
 
       // Filter by tab
       if (activeTab === "verified") {
-        filtered = filtered.filter((artikel) => artikel.isVerified);
+        filtered = filtered.filter((artikel: Artikel) => artikel.isVerified);
       } else if (activeTab === "unverified") {
-        filtered = filtered.filter((artikel) => !artikel.isVerified);
+        filtered = filtered.filter((artikel: Artikel) => !artikel.isVerified);
       }
 
       // Filter by search term
       if (searchTerm) {
         filtered = filtered.filter(
-          (artikel) =>
+          (artikel: Artikel) =>
             artikel.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
             artikel.description
               .toLowerCase()
@@ -176,6 +148,7 @@ export default function PengelolaArtikel() {
                 .includes(searchTerm.toLowerCase()))
         );
       }
+
       setFilteredArtikel(filtered);
     }
   }, [searchTerm, artikelData, activeTab]);
@@ -194,7 +167,6 @@ export default function PengelolaArtikel() {
     }
   };
 
-  // Replace the handleAddArtikel function with this implementation
   const handleAddArtikel = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -203,7 +175,6 @@ export default function PengelolaArtikel() {
 
     try {
       const formData = new FormData(e.currentTarget);
-
       const progressInterval = setInterval(() => {
         setUploadProgress((prevProgress) => {
           if (prevProgress >= 95) {
@@ -218,7 +189,7 @@ export default function PengelolaArtikel() {
         method: "POST",
         body: formData,
       });
-      mutate("/api/artikel");
+      mutate();
 
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -228,30 +199,24 @@ export default function PengelolaArtikel() {
         throw new Error(errorData.error || "Failed to add artikel");
       }
 
-      await fetchArtikel();
       setOpenAddDialog(false);
       toast.success("Artikel berhasil ditambahkan");
       if (addFormRef.current) addFormRef.current.reset();
       setPreviewImage(null);
     } catch (error) {
       console.error("Error adding artikel:", error);
-      setFormError(
+      const message =
         error instanceof Error
           ? error.message
-          : "Gagal menambahkan artikel. Silakan coba lagi."
-      );
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Gagal menambahkan artikel. Silakan coba lagi."
-      );
+          : "Gagal menambahkan artikel. Silakan coba lagi.";
+      setFormError(message);
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
       setUploadProgress(0);
     }
   };
 
-  // Replace the handleEditArtikel function with this implementation
   const handleEditArtikel = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!selectedArtikel) return;
@@ -262,7 +227,6 @@ export default function PengelolaArtikel() {
 
     try {
       const formData = new FormData(e.currentTarget);
-
       const progressInterval = setInterval(() => {
         setUploadProgress((prevProgress) => {
           if (prevProgress >= 95) {
@@ -277,7 +241,7 @@ export default function PengelolaArtikel() {
         method: "PUT",
         body: formData,
       });
-      mutate("/api/artikel");
+      mutate();
 
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -288,35 +252,17 @@ export default function PengelolaArtikel() {
       }
 
       const result = await response.json();
-      console.log("API Response:", result);
-
-      const updatedArtikel = result.data;
-      setArtikelData((prev) =>
-        prev.map((a) =>
-          a.id === selectedArtikel.id ? { ...a, ...updatedArtikel } : a
-        )
-      );
-      setFilteredArtikel((prev) =>
-        prev.map((a) =>
-          a.id === selectedArtikel.id ? { ...a, ...updatedArtikel } : a
-        )
-      );
-
       setOpenEditDialog(false);
       toast.success(result.message || "Artikel berhasil diperbarui");
       setPreviewImage(null);
     } catch (error) {
       console.error("Error updating artikel:", error);
-      setFormError(
+      const message =
         error instanceof Error
           ? error.message
-          : "Gagal memperbarui artikel. Silakan coba lagi."
-      );
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Gagal memperbarui artikel. Silakan coba lagi."
-      );
+          : "Gagal memperbarui artikel. Silakan coba lagi.";
+      setFormError(message);
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
       setUploadProgress(0);
@@ -328,39 +274,29 @@ export default function PengelolaArtikel() {
     setOpenDeleteDialog(true);
   };
 
-  // Replace the confirmDelete function with this implementation
   const confirmDelete = async () => {
     if (!artikelToDelete) return;
 
     try {
-      const toastId = toast.loading("Menghapus artikel...");
-
       const response = await fetch(`/api/artikel?id=${artikelToDelete.id}`, {
         method: "DELETE",
       });
-      mutate("/api/artikel");
+      mutate();
 
       const result = await response.json();
-      console.log("DELETE Response:", result);
 
       if (!response.ok) {
         throw new Error(result.error || "Failed to delete artikel");
       }
 
-      // Refresh data
-      await fetchArtikel();
-      console.log("Updated artikelData:", artikelData);
-
-      toast.dismiss(toastId);
       toast.success(result.message || "Artikel berhasil dihapus");
     } catch (error) {
       console.error("Error deleting artikel:", error);
-      toast.dismiss();
-      toast.error(
+      const message =
         error instanceof Error
           ? error.message
-          : "Gagal menghapus artikel. Silakan coba lagi."
-      );
+          : "Gagal menghapus artikel. Silakan coba lagi.";
+      toast.error(message);
     } finally {
       setOpenDeleteDialog(false);
       setArtikelToDelete(null);
@@ -383,15 +319,55 @@ export default function PengelolaArtikel() {
     });
   };
 
-  // Add these functions after the formatDate function
   const getVerifiedCount = () => {
-    return artikelData.filter((artikel) => artikel.isVerified).length;
+    return artikelData.filter((artikel: Artikel) => artikel.isVerified).length;
   };
 
   const getUnverifiedCount = () => {
-    return artikelData.filter((artikel) => !artikel.isVerified).length;
+    return artikelData.filter((artikel: Artikel) => !artikel.isVerified).length;
   };
 
+  const handleRetry = () => {
+    mutate();
+  };
+
+  // Error state
+  if (error) {
+    return (
+      <div className="container py-10 mx-auto space-y-8">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary/70">
+              Artikel
+            </h1>
+            <p className="mt-2 text-muted-foreground">
+              Kelola artikel dalam satu tempat
+            </p>
+          </div>
+        </div>
+
+        <Alert variant="destructive">
+          <AlertCircle className="w-4 h-4" />
+          <AlertDescription className="flex items-center justify-between">
+            <span>
+              Gagal memuat data artikel.{" "}
+              {error.message || "Terjadi kesalahan pada server."}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRetry}
+              className="ml-4 bg-transparent">
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Coba Lagi
+            </Button>
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  // Loading state
   if (isLoading) {
     return (
       <div className="container py-10 mx-auto space-y-8">
@@ -430,7 +406,9 @@ export default function PengelolaArtikel() {
       className="container py-10 mx-auto">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold">Artikel</h1>
+          <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary/70">
+            Artikel
+          </h1>
           <p className="mt-2 text-muted-foreground">
             Kelola artikel dalam satu tempat
           </p>
@@ -442,7 +420,7 @@ export default function PengelolaArtikel() {
               <Input
                 type="search"
                 placeholder="Cari artikel..."
-                className="pl-8 w-[250px]"
+                className="pl-8 w-[250px] bg-background/60 backdrop-blur-sm border-muted"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -451,7 +429,7 @@ export default function PengelolaArtikel() {
               open={openAddDialog}
               onOpenChange={setOpenAddDialog}>
               <DialogTrigger asChild>
-                <Button>
+                <Button className="bg-primary hover:bg-primary/90">
                   <PlusCircle className="w-4 h-4 mr-2" />
                   Tambah Artikel
                 </Button>
@@ -535,7 +513,6 @@ export default function PengelolaArtikel() {
                             </div>
                           </div>
                         </div>
-
                         {previewImage && (
                           <div className="relative overflow-hidden border rounded-md aspect-video">
                             <Image
@@ -550,11 +527,13 @@ export default function PengelolaArtikel() {
                       </div>
                     </div>
                   </div>
+
                   {formError && (
                     <div className="p-3 mb-4 text-sm text-red-600 border border-red-200 rounded-md bg-red-50">
                       {formError}
                     </div>
                   )}
+
                   {isSubmitting && (
                     <div className="mb-4">
                       <Label className="mb-1.5 block">Mengunggah...</Label>
@@ -564,6 +543,7 @@ export default function PengelolaArtikel() {
                       />
                     </div>
                   )}
+
                   <DialogFooter>
                     <Button
                       variant="outline"
@@ -591,7 +571,6 @@ export default function PengelolaArtikel() {
       </div>
 
       <div className="flex flex-col items-start justify-between gap-4 mb-8 sm:flex-row sm:items-center">
-        {/* Add the tabs UI after the header section and before the Card component */}
         <div className="inline-flex p-1 rounded-lg shadow-sm bg-muted/60 backdrop-blur-sm">
           <button
             onClick={() => setActiveTab("all")}
@@ -635,7 +614,6 @@ export default function PengelolaArtikel() {
         </div>
       </div>
 
-      {/* Replace the Card and Table section with this simplified UI */}
       <Card className="overflow-hidden">
         <div className="p-4 border-b">
           <h3 className="text-lg font-medium">Daftar Artikel</h3>
@@ -651,7 +629,7 @@ export default function PengelolaArtikel() {
               </p>
             </div>
           ) : (
-            filteredArtikel.map((artikel) => (
+            filteredArtikel.map((artikel: Artikel) => (
               <div
                 key={artikel.id}
                 className="p-4 transition-colors hover:bg-muted/30">
@@ -666,7 +644,6 @@ export default function PengelolaArtikel() {
                       {artikel.title.substring(0, 2).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <h4 className="font-medium truncate">{artikel.title}</h4>
@@ -686,11 +663,9 @@ export default function PengelolaArtikel() {
                         </Badge>
                       )}
                     </div>
-
                     <p className="text-sm text-muted-foreground line-clamp-2">
                       {artikel.description}
                     </p>
-
                     <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
                       <span className="flex items-center">
                         <User className="w-3.5 h-3.5 mr-1" />
@@ -705,7 +680,8 @@ export default function PengelolaArtikel() {
                           <Star className="w-3.5 h-3.5 mr-1 text-yellow-500" />
                           {(
                             artikel.ulasans.reduce(
-                              (acc, ulasan) => acc + ulasan.rating,
+                              (acc: number, ulasan: Ulasan) =>
+                                acc + ulasan.rating,
                               0
                             ) / artikel.ulasans.length
                           ).toFixed(1)}
@@ -731,7 +707,6 @@ export default function PengelolaArtikel() {
                         <TooltipContent>Edit</TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
-
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -848,11 +823,13 @@ export default function PengelolaArtikel() {
                   </div>
                 </div>
               </div>
+
               {formError && (
                 <div className="p-3 mb-4 text-sm text-red-600 border border-red-200 rounded-md bg-red-50">
                   {formError}
                 </div>
               )}
+
               {isSubmitting && (
                 <div className="mb-4">
                   <Label className="mb-1.5 block">Mengunggah...</Label>
@@ -862,6 +839,7 @@ export default function PengelolaArtikel() {
                   />
                 </div>
               )}
+
               <DialogFooter>
                 <Button
                   variant="outline"
@@ -884,6 +862,7 @@ export default function PengelolaArtikel() {
           )}
         </DialogContent>
       </Dialog>
+
       <DeleteConfirmationDialog
         isOpen={openDeleteDialog}
         onClose={() => setOpenDeleteDialog(false)}

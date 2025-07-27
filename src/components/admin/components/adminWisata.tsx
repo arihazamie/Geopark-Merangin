@@ -2,6 +2,7 @@
 
 import type React from "react";
 import { useState, useEffect, useRef } from "react";
+import useSWR from "swr";
 import {
   Landmark,
   PlusCircle,
@@ -51,11 +52,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
-import { WisataPdfButton } from "../export/wisata/Button";
 import { LoadingCards } from "@/components/ui/loading-spinner";
 import Image from "next/image";
-import MapLocationPicker from "@/components/Pengelola/components/map-location-picker";
-import { mutate } from "swr";
+import { WisataPdfButton } from "../export/wisata/Button";
 
 interface Wisata {
   id: number;
@@ -76,6 +75,12 @@ interface Wisata {
   closingTime?: string;
 }
 
+interface ApiResponse {
+  success: boolean;
+  data: Wisata[];
+  message?: string;
+}
+
 interface DeleteConfirmationDialogProps {
   isOpen: boolean;
   onClose: () => void;
@@ -84,6 +89,34 @@ interface DeleteConfirmationDialogProps {
   description: string;
   itemName?: string;
 }
+
+// SWR fetcher function
+const fetcher = async (url: string): Promise<Wisata[]> => {
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    let errorMessage = `Server error: ${response.status} ${response.statusText}`;
+    try {
+      const errorData = await response.json();
+      errorMessage = errorData.error || errorMessage;
+    } catch (parseError) {
+      console.error("Error parsing error response:", parseError);
+    }
+    throw new Error(errorMessage);
+  }
+
+  const result = await response.json();
+
+  // Handle different response formats
+  if (result.success && Array.isArray(result.data)) {
+    return result.data;
+  } else if (Array.isArray(result)) {
+    return result;
+  } else {
+    console.error("Unexpected API response format:", result);
+    return [];
+  }
+};
 
 const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> = ({
   isOpen,
@@ -124,14 +157,49 @@ const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> = ({
   );
 };
 
+// Mock MapLocationPicker component
+const MapLocationPicker: React.FC<{
+  onLocationSelect: (lat: number, lng: number) => void;
+  initialLat: number;
+  initialLng: number;
+  height: string;
+}> = ({ onLocationSelect, initialLat, initialLng, height }) => {
+  return (
+    <div
+      className="flex items-center justify-center border rounded-lg bg-muted/30"
+      style={{ height }}>
+      <div className="text-center">
+        <Map className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">Map Location Picker</p>
+        <Button
+          size="sm"
+          className="mt-2"
+          onClick={() => onLocationSelect(-6.2, 106.816)}>
+          Select Location
+        </Button>
+      </div>
+    </div>
+  );
+};
+
 export default function WisataPage() {
+  // SWR hook for data fetching
+  const {
+    data: wisataData = [],
+    error,
+    isLoading,
+    mutate: mutateWisata,
+  } = useSWR<Wisata[]>("/api/wisata", fetcher, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: true,
+    dedupingInterval: 5000,
+  });
+
   const [openAddDialog, setOpenAddDialog] = useState(false);
   const [openEditDialog, setOpenEditDialog] = useState(false);
   const [selectedWisata, setSelectedWisata] = useState<Wisata | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [wisataData, setWisataData] = useState<Wisata[]>([]);
   const [filteredWisata, setFilteredWisata] = useState<Wisata[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [previewImages, setPreviewImages] = useState<string[]>([]);
   const [editPreviewImages, setEditPreviewImages] = useState<string[]>([]);
@@ -156,10 +224,7 @@ export default function WisataPage() {
   const addFormRef = useRef<HTMLFormElement>(null);
   const editFormRef = useRef<HTMLFormElement>(null);
 
-  useEffect(() => {
-    fetchWisata();
-  }, []);
-
+  // Filter wisata data based on search term and active tab
   useEffect(() => {
     if (wisataData.length > 0) {
       let filtered = wisataData;
@@ -186,48 +251,14 @@ export default function WisataPage() {
     }
   }, [searchTerm, wisataData, activeTab]);
 
-  const fetchWisata = async () => {
-    setIsLoading(true);
-    try {
-      const response = await fetch(`/api/wisata`);
-
-      if (!response.ok) {
-        let errorMessage = `Server error: ${response.status} ${response.statusText}`;
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || errorMessage;
-        } catch (parseError) {
-          console.error("Error parsing error response:", parseError);
-        }
-        throw new Error(errorMessage);
-      }
-
-      const result = await response.json();
-
-      // Check if the API returns data in the expected structure
-      if (result.success && Array.isArray(result.data)) {
-        setWisataData(result.data);
-        setFilteredWisata(result.data);
-      } else if (Array.isArray(result)) {
-        // Fallback for direct array response
-        setWisataData(result);
-        setFilteredWisata(result);
-      } else {
-        console.error("Unexpected API response format:", result);
-        setWisataData([]);
-        setFilteredWisata([]);
-      }
-    } catch (error) {
-      console.error("Error fetching wisata:", error);
+  // Show error toast when SWR error occurs
+  useEffect(() => {
+    if (error) {
       toast.error(
-        error instanceof Error
-          ? error.message
-          : "Gagal memuat data wisata. Silakan coba lagi."
+        error.message || "Gagal memuat data wisata. Silakan coba lagi."
       );
-    } finally {
-      setIsLoading(false);
     }
-  };
+  }, [error]);
 
   const handleImageChange = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -285,7 +316,6 @@ export default function WisataPage() {
       if (locationInputMethod === "map") {
         latitude = selectedLatitude;
         longitude = selectedLongitude;
-        // Update form data with selected coordinates
         formData.set("latitude", selectedLatitude.toString());
         formData.set("longitude", selectedLongitude.toString());
       } else {
@@ -331,12 +361,33 @@ export default function WisataPage() {
         });
       }, 500);
 
+      // Optimistic update - add temporary item
+      const tempWisata: Wisata = {
+        id: Date.now(), // temporary ID
+        name: name,
+        description: description,
+        location: location,
+        type: formData.get("type")?.toString() || null,
+        latitude: latitude,
+        longitude: longitude,
+        images: previewImages,
+        reviews: 0,
+        isVerified: false,
+        ticketPrice: Number(formData.get("ticketPrice")) || 0,
+        openingTime: openingTime || undefined,
+        closingTime: closingTime || undefined,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      // Optimistic update
+      mutateWisata([...wisataData, tempWisata], false);
+
       // Send data to API
       const response = await fetch("/api/wisata", {
         method: "POST",
         body: formData,
       });
-      mutate("/api/wisata");
 
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -352,8 +403,8 @@ export default function WisataPage() {
         throw new Error(errorMessage);
       }
 
-      // Success response - refresh the data from server
-      await fetchWisata();
+      // Revalidate data from server
+      mutateWisata();
 
       setOpenAddDialog(false);
       setPreviewImages([]);
@@ -370,6 +421,9 @@ export default function WisataPage() {
           : "Gagal menambahkan wisata. Silakan coba lagi.";
       setFormError(message);
       toast.error(message);
+
+      // Revert optimistic update on error
+      mutateWisata();
     } finally {
       setIsSubmitting(false);
       setUploadProgress(0);
@@ -418,6 +472,26 @@ export default function WisataPage() {
         });
       }, 500);
 
+      // Optimistic update
+      const updatedWisata: Wisata = {
+        ...selectedWisata,
+        name: name,
+        description: description,
+        location: location,
+        type: formData.get("type")?.toString() || null,
+        latitude: Number.parseFloat(latitude),
+        longitude: Number.parseFloat(longitude),
+        ticketPrice: Number(formData.get("ticketPrice")) || 0,
+        openingTime: openingTime || undefined,
+        closingTime: closingTime || undefined,
+        updatedAt: new Date().toISOString(),
+      };
+
+      mutateWisata(
+        wisataData.map((w) => (w.id === selectedWisata.id ? updatedWisata : w)),
+        false
+      );
+
       const response = await fetch(
         `/api/admin/wisata?id=${selectedWisata.id}`,
         {
@@ -425,40 +499,38 @@ export default function WisataPage() {
           body: formData,
         }
       );
-      mutate("/api/wisata");
 
       clearInterval(progressInterval);
       setUploadProgress(100);
 
       if (!response.ok) {
         let errorMessage = `Server error: ${response.status} ${response.statusText}`;
-
         try {
           const errorData = await response.json();
           errorMessage = errorData.error || errorMessage;
         } catch (parseError) {
           console.error("Error parsing error response:", parseError);
         }
-
         throw new Error(errorMessage);
       }
 
-      await fetchWisata();
+      // Revalidate data from server
+      mutateWisata();
+
       setOpenEditDialog(false);
       setEditPreviewImages([]);
       toast.success("Wisata berhasil diperbarui");
     } catch (error) {
       console.error("Error updating wisata:", error);
-      setFormError(
+      const message =
         error instanceof Error
           ? error.message
-          : "Gagal memperbarui wisata. Silakan coba lagi."
-      );
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Gagal memperbarui wisata. Silakan coba lagi."
-      );
+          : "Gagal memperbarui wisata. Silakan coba lagi.";
+      setFormError(message);
+      toast.error(message);
+
+      // Revert optimistic update on error
+      mutateWisata();
     } finally {
       setIsSubmitting(false);
       setUploadProgress(0);
@@ -474,10 +546,15 @@ export default function WisataPage() {
     if (!wisataToDelete) return;
 
     try {
+      // Optimistic update - remove item immediately
+      mutateWisata(
+        wisataData.filter((w) => w.id !== wisataToDelete.id),
+        false
+      );
+
       const response = await fetch(`/api/wisata?id=${wisataToDelete.id}`, {
         method: "DELETE",
       });
-      mutate("/api/wisata");
 
       if (!response.ok) {
         let errorMessage = `Server error: ${response.status} ${response.statusText}`;
@@ -490,11 +567,8 @@ export default function WisataPage() {
         throw new Error(errorMessage);
       }
 
-      // Update local state after successful deletion
-      setWisataData(wisataData.filter((w) => w.id !== wisataToDelete.id));
-      setFilteredWisata(
-        filteredWisata.filter((w) => w.id !== wisataToDelete.id)
-      );
+      // Revalidate data from server
+      mutateWisata();
 
       toast.success("Wisata berhasil dihapus");
     } catch (error) {
@@ -504,6 +578,9 @@ export default function WisataPage() {
           ? error.message
           : "Gagal menghapus wisata. Silakan coba lagi."
       );
+
+      // Revert optimistic update on error
+      mutateWisata();
     } finally {
       setOpenDeleteDialog(false);
       setWisataToDelete(null);
@@ -519,50 +596,39 @@ export default function WisataPage() {
 
   const handleVerify = async (wisata: Wisata) => {
     try {
-      // Tampilkan loading toast
       const toastId = toast.loading(
         wisata.isVerified
           ? "Membatalkan verifikasi wisata..."
           : "Memverifikasi wisata..."
       );
 
-      // Siapkan FormData hanya dengan field yang dibutuhkan
-      const formData = new FormData();
-      formData.append("isVerified", (!wisata.isVerified).toString()); // Toggle status verifikasi
+      // Optimistic update
+      const updatedWisata = { ...wisata, isVerified: !wisata.isVerified };
+      mutateWisata(
+        wisataData.map((w) => (w.id === wisata.id ? updatedWisata : w)),
+        false
+      );
 
-      // Fetch ke endpoint PUT
+      const formData = new FormData();
+      formData.append("isVerified", (!wisata.isVerified).toString());
+
       const response = await fetch(`/api/admin/wisata?id=${wisata.id}`, {
         method: "PUT",
         body: formData,
       });
-      mutate("/api/wisata");
 
-      // Cek apakah response berhasil
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || `Server error: ${response.status}`);
       }
 
-      // Ambil data dari response
       const result = await response.json();
-      const updatedWisata = result.data;
 
-      // Validasi data response
-      if (!updatedWisata || typeof updatedWisata.isVerified === "undefined") {
-        throw new Error("Response dari server tidak valid");
-      }
+      // Revalidate data from server
+      mutateWisata();
 
-      // Update state lokal
-      setWisataData((prev) =>
-        prev.map((w) => (w.id === wisata.id ? updatedWisata : w))
-      );
-      setFilteredWisata((prev) =>
-        prev.map((w) => (w.id === wisata.id ? updatedWisata : w))
-      );
-
-      // Sukses
       toast.dismiss(toastId);
-      toast.success(result.message); // Gunakan pesan dari backend
+      toast.success(result.message);
     } catch (error) {
       console.error("Error updating verification status:", error);
       toast.error(
@@ -570,6 +636,9 @@ export default function WisataPage() {
           ? error.message
           : "Gagal memperbarui status verifikasi. Silakan coba lagi."
       );
+
+      // Revert optimistic update on error
+      mutateWisata();
     }
   };
 
@@ -581,6 +650,7 @@ export default function WisataPage() {
     return wisataData.filter((wisata) => !wisata.isVerified).length;
   };
 
+  // Show loading state
   if (isLoading) {
     return (
       <div className="container py-10 mx-auto space-y-8">
@@ -591,6 +661,28 @@ export default function WisataPage() {
           </div>
         </div>
         <LoadingCards />
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="container py-10 mx-auto">
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <div className="text-lg font-medium text-red-600">
+            Error loading data
+          </div>
+          <p className="max-w-md mt-2 text-sm text-muted-foreground">
+            {error.message}
+          </p>
+          <Button
+            onClick={() => mutateWisata()}
+            className="mt-4"
+            variant="outline">
+            Retry
+          </Button>
+        </div>
       </div>
     );
   }
@@ -720,14 +812,14 @@ export default function WisataPage() {
                             <Label
                               htmlFor="latitude"
                               className="text-xs text-muted-foreground">
-                              Lattitude
+                              Latitude
                             </Label>
                             <Input
                               id="latitude"
                               name="latitude"
                               type="number"
                               step="any"
-                              placeholder="String"
+                              placeholder="Latitude"
                               value={selectedLatitude}
                               onChange={(e) =>
                                 setSelectedLatitude(
@@ -748,7 +840,7 @@ export default function WisataPage() {
                               name="longitude"
                               type="number"
                               step="any"
-                              placeholder="String"
+                              placeholder="Longitude"
                               value={selectedLongitude}
                               onChange={(e) =>
                                 setSelectedLongitude(
@@ -960,7 +1052,7 @@ export default function WisataPage() {
         </div>
       </div>
 
-      {/* Card-based UI  Tampilan Data Wiasata*/}
+      {/* Card-based UI Tampilan Data Wisata */}
       <Card className="overflow-hidden">
         <div className="p-4 border-b">
           <h3 className="text-lg font-medium">Daftar Wisata</h3>
@@ -1088,7 +1180,7 @@ export default function WisataPage() {
                           <Button
                             variant="outline"
                             size="icon"
-                            className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                            className="text-blue-600 bg-transparent border-blue-200 hover:bg-blue-50"
                             onClick={() => handleEdit(wisata)}>
                             <Pencil className="w-4 h-4" />
                             <span className="sr-only">Edit</span>
@@ -1106,7 +1198,7 @@ export default function WisataPage() {
                           <Button
                             variant="outline"
                             size="icon"
-                            className="text-red-600 border-red-200 hover:bg-red-50"
+                            className="text-red-600 bg-transparent border-red-200 hover:bg-red-50"
                             onClick={() => handleDelete(wisata)}>
                             <Trash2 className="w-4 h-4" />
                             <span className="sr-only">Delete</span>
@@ -1125,6 +1217,7 @@ export default function WisataPage() {
         </div>
       </Card>
 
+      {/* Edit Dialog */}
       <Dialog
         open={openEditDialog}
         onOpenChange={setOpenEditDialog}>
@@ -1204,7 +1297,6 @@ export default function WisataPage() {
                   </Select>
                 </div>
 
-                {/* Edit Price and Operating Hours */}
                 <div className="grid items-center grid-cols-4 gap-4">
                   <Label
                     htmlFor="edit-ticketPrice"
@@ -1343,6 +1435,8 @@ export default function WisataPage() {
                             <Image
                               src={url || "/placeholder.svg"}
                               alt={`Preview ${index + 1}`}
+                              width={100}
+                              height={100}
                               className="object-cover w-full h-full"
                             />
                           </div>
