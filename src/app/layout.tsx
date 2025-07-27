@@ -3,6 +3,7 @@ import { Providers } from "@/lib/providers";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import { GlobalToastProvider } from "@/components/ui/global-toast-provider";
 import DashboardLayout from "@/components/Reuseable/Layout";
+import Head from "next/head";
 
 export const metadata = {
   title: "Geopark Merangin Jambi",
