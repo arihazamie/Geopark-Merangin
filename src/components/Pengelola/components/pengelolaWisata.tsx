@@ -143,6 +143,8 @@ export default function WisataPage() {
     "all"
   );
   const [formError, setFormError] = useState<string | null>(null);
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
 
   // Map picker states
   const [selectedLatitude, setSelectedLatitude] = useState<number>(-6.2);

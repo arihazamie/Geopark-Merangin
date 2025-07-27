@@ -55,6 +55,7 @@ import { Progress } from "@/components/ui/progress";
 import { LoadingCards } from "@/components/ui/loading-spinner";
 import Image from "next/image";
 import { WisataPdfButton } from "../export/wisata/Button";
+import MapLocationPicker from "@/components/Pengelola/components/map-location-picker";
 
 interface Wisata {
   id: number;
@@ -154,31 +155,6 @@ const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> = ({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-};
-
-// Mock MapLocationPicker component
-const MapLocationPicker: React.FC<{
-  onLocationSelect: (lat: number, lng: number) => void;
-  initialLat: number;
-  initialLng: number;
-  height: string;
-}> = ({ onLocationSelect, initialLat, initialLng, height }) => {
-  return (
-    <div
-      className="flex items-center justify-center border rounded-lg bg-muted/30"
-      style={{ height }}>
-      <div className="text-center">
-        <Map className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">Map Location Picker</p>
-        <Button
-          size="sm"
-          className="mt-2"
-          onClick={() => onLocationSelect(-6.2, 106.816)}>
-          Select Location
-        </Button>
-      </div>
-    </div>
   );
 };
 
