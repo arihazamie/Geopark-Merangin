@@ -45,6 +45,7 @@ import { Badge } from "@/components/ui/badge";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { ArtikelPdfButton } from "../export/artikel/Button";
 import Image from "next/image";
+import { mutate } from "swr";
 
 interface Ulasan {
   id: number;
@@ -220,6 +221,7 @@ export default function ArtikelPage() {
         method: "POST",
         body: formData,
       });
+      mutate("/api/artikel");
 
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -277,8 +279,8 @@ export default function ArtikelPage() {
       const response = await fetch(`/api/artikel?id=${selectedArtikel.id}`, {
         method: "PUT",
         body: formData,
-        cache: "no-store",
       });
+      mutate("/api/artikel");
 
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -338,8 +340,8 @@ export default function ArtikelPage() {
 
       const response = await fetch(`/api/artikel?id=${artikelToDelete.id}`, {
         method: "DELETE",
-        cache: "no-store", // Prevent caching of the DELETE request
       });
+      mutate("/api/artikel");
 
       const result = await response.json();
       console.log("DELETE Response:", result);
@@ -413,6 +415,7 @@ export default function ArtikelPage() {
           isVerified: !artikel.isVerified,
         }),
       });
+      mutate("/api/artikel");
 
       const result = await response.json();
       console.log("API Response:", result); // Debug: Check the response
@@ -593,9 +596,10 @@ export default function ArtikelPage() {
                         {previewImage && (
                           <div className="relative overflow-hidden border rounded-md aspect-video">
                             <Image
-                              src={previewImage || "/placeholder.svg"}
+                              src={previewImage}
                               alt="Preview"
-                              className="object-cover w-full h-full"
+                              fill
+                              className="object-cover"
                             />
                           </div>
                         )}

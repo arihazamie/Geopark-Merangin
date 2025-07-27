@@ -55,6 +55,7 @@ import { WisataPdfButton } from "../export/wisata/Button";
 import { LoadingCards } from "@/components/ui/loading-spinner";
 import Image from "next/image";
 import MapLocationPicker from "@/components/Pengelola/components/map-location-picker";
+import { mutate } from "swr";
 
 interface Wisata {
   id: number;
@@ -149,9 +150,6 @@ export default function WisataPage() {
   const [editSelectedLatitude, setEditSelectedLatitude] = useState<number>(0);
   const [editSelectedLongitude, setEditSelectedLongitude] = useState<number>(0);
   const [locationInputMethod, setLocationInputMethod] = useState<
-    "manual" | "map"
-  >("manual");
-  const [editLocationInputMethod, setEditLocationInputMethod] = useState<
     "manual" | "map"
   >("manual");
 
@@ -338,6 +336,7 @@ export default function WisataPage() {
         method: "POST",
         body: formData,
       });
+      mutate("/api/wisata");
 
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -426,6 +425,7 @@ export default function WisataPage() {
           body: formData,
         }
       );
+      mutate("/api/wisata");
 
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -477,6 +477,7 @@ export default function WisataPage() {
       const response = await fetch(`/api/wisata?id=${wisataToDelete.id}`, {
         method: "DELETE",
       });
+      mutate("/api/wisata");
 
       if (!response.ok) {
         let errorMessage = `Server error: ${response.status} ${response.statusText}`;
@@ -534,6 +535,7 @@ export default function WisataPage() {
         method: "PUT",
         body: formData,
       });
+      mutate("/api/wisata");
 
       // Cek apakah response berhasil
       if (!response.ok) {

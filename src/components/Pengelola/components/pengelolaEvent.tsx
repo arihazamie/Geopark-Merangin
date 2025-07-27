@@ -52,6 +52,7 @@ import { LoadingCards } from "@/components/ui/loading-spinner";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { Progress } from "@/components/ui/progress";
 import Image from "next/image";
+import { mutate } from "swr";
 
 interface Event {
   id: number;
@@ -221,6 +222,7 @@ export default function PengelolaEvent() {
         method: "POST",
         body: formData,
       });
+      mutate("/api/event");
 
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -285,6 +287,7 @@ export default function PengelolaEvent() {
         method: "PUT",
         body: formData,
       });
+      mutate("/api/event");
 
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -328,6 +331,7 @@ export default function PengelolaEvent() {
       const response = await fetch(`/api/event?id=${eventToDelete.id}`, {
         method: "DELETE",
       });
+      mutate("/api/event");
 
       if (!response.ok) {
         const errorData = await response.json();

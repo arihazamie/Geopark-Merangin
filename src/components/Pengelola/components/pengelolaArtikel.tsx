@@ -43,6 +43,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import Image from "next/image";
+import { mutate } from "swr";
 
 interface Ulasan {
   id: number;
@@ -217,6 +218,7 @@ export default function PengelolaArtikel() {
         method: "POST",
         body: formData,
       });
+      mutate("/api/artikel");
 
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -274,8 +276,8 @@ export default function PengelolaArtikel() {
       const response = await fetch(`/api/artikel?id=${selectedArtikel.id}`, {
         method: "PUT",
         body: formData,
-        cache: "no-store",
       });
+      mutate("/api/artikel");
 
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -335,8 +337,8 @@ export default function PengelolaArtikel() {
 
       const response = await fetch(`/api/artikel?id=${artikelToDelete.id}`, {
         method: "DELETE",
-        cache: "no-store", // Prevent caching of the DELETE request
       });
+      mutate("/api/artikel");
 
       const result = await response.json();
       console.log("DELETE Response:", result);

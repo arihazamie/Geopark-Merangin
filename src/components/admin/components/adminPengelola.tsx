@@ -46,6 +46,7 @@ import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import Image from "next/image";
 import { PengelolaPdfButton } from "../export/pengelola/Button";
+import { mutate } from "swr";
 
 interface Pengelola {
   id: number;
@@ -208,6 +209,7 @@ export default function PengelolaPage() {
         method: "POST",
         body: formData,
       });
+      mutate("/api/pengelola");
 
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -283,6 +285,7 @@ export default function PengelolaPage() {
         },
         body: JSON.stringify(pengelolaData),
       });
+      mutate("/api/pengelola");
 
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -327,6 +330,7 @@ export default function PengelolaPage() {
         },
         body: JSON.stringify({ id: pengelolaToDelete.id }),
       });
+      mutate("/api/pengelola");
 
       const result = await response.json();
 
@@ -378,6 +382,7 @@ export default function PengelolaPage() {
           isVerified: true,
         }),
       });
+      mutate("/api/pengelola");
 
       const result = await response.json();
 

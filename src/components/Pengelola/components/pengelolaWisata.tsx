@@ -53,6 +53,7 @@ import { Progress } from "@/components/ui/progress";
 import { LoadingCards } from "@/components/ui/loading-spinner";
 import Image from "next/image";
 import MapLocationPicker from "./map-location-picker";
+import { mutate } from "swr";
 
 interface Wisata {
   id: number;
@@ -270,6 +271,7 @@ export default function WisataPage() {
         method: "POST",
         body: formData,
       });
+      mutate("/api/wisata");
 
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -327,6 +329,7 @@ export default function WisataPage() {
         method: "PUT",
         body: formData,
       });
+      mutate("/api/wisata");
 
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -366,6 +369,7 @@ export default function WisataPage() {
       const response = await fetch(`/api/wisata?id=${wisataToDelete.id}`, {
         method: "DELETE",
       });
+      mutate("/api/wisata");
 
       if (!response.ok) {
         const errorData = await response.json();

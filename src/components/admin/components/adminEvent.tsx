@@ -4,6 +4,7 @@ import { DialogTrigger } from "@/components/ui/dialog";
 
 import type React from "react";
 
+import { mutate } from "swr";
 import { useState, useEffect, useRef } from "react";
 import {
   PlusCircle,
@@ -147,6 +148,7 @@ export default function EventPage() {
       if (!response.ok) {
         throw new Error("Failed to fetch event data");
       }
+
       const data = await response.json();
       setEventData(data);
       setFilteredEvents(data);
@@ -222,6 +224,7 @@ export default function EventPage() {
         method: "POST",
         body: formData,
       });
+      mutate("/api/event");
 
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -286,6 +289,7 @@ export default function EventPage() {
         method: "PUT",
         body: formData,
       });
+      mutate("/api/event");
 
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -329,6 +333,7 @@ export default function EventPage() {
       const response = await fetch(`/api/event?id=${eventToDelete.id}`, {
         method: "DELETE",
       });
+      mutate("/api/event");
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -441,6 +446,7 @@ export default function EventPage() {
         },
         body: JSON.stringify({ isVerified: newVerificationStatus }),
       });
+      mutate("/api/event");
 
       // Parse the response
       const result = await response.json();
@@ -602,11 +608,12 @@ export default function EventPage() {
                       </div>
 
                       {previewImage && (
-                        <div className="relative overflow-hidden border rounded-md aspect-video">
+                        <div className="relative w-full overflow-hidden border rounded-md aspect-video">
                           <Image
-                            src={previewImage || "/placeholder.svg"}
+                            src={previewImage}
                             alt="Preview"
-                            className="object-cover w-full h-full"
+                            fill
+                            className="object-cover"
                           />
                         </div>
                       )}
