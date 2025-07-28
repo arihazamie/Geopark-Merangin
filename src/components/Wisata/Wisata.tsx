@@ -50,29 +50,30 @@ interface Attraction {
 
 type FilterType = "all" | "Geologi" | "Biologi" | "Budaya";
 
-const fetcher = (url: string) =>
-  fetch(url)
-    .then((res) => res.json())
-    .then((json) => {
-      if (!json.success) throw new Error(json.error || "Gagal mengambil data");
-      return (json.data || []).filter((item: Attraction) => item.isVerified);
-    });
+const fetcher = (url: string) => fetch(url).then((res) => res.json()); // sama seperti pengelola
 
 export default function WisataTabs() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
 
-  const {
-    data: attractions = [],
-    error,
-    isLoading,
-  } = useSWR<Attraction[]>("/api/wisata", fetcher, {
-    dedupingInterval: 300000,
+  const { data, error, isLoading } = useSWR<{
+    success: boolean;
+    data: Attraction[];
+  }>("/api/wisata", fetcher, {
     revalidateOnFocus: false,
+    revalidateOnReconnect: true,
+    dedupingInterval: 300000,
   });
 
+  const attractions = data?.data ?? [];
+
+  const verifiedAttractions = useMemo(() => {
+    if (!Array.isArray(attractions)) return [];
+    return attractions.filter((a) => a.isVerified);
+  }, [attractions]);
+
   const filteredAttractions = useMemo(() => {
-    let result = attractions;
+    let result = verifiedAttractions;
 
     if (activeFilter !== "all") {
       result = result.filter((a) => a.type === activeFilter);
@@ -90,17 +91,16 @@ export default function WisataTabs() {
     }
 
     return result;
-  }, [attractions, searchQuery, activeFilter]);
+  }, [verifiedAttractions, searchQuery, activeFilter]);
 
-  const filterCounts = useMemo(
-    () => ({
-      all: attractions.length,
-      Geologi: attractions.filter((a) => a.type === "Geologi").length,
-      Biologi: attractions.filter((a) => a.type === "Biologi").length,
-      Budaya: attractions.filter((a) => a.type === "Budaya").length,
-    }),
-    [attractions]
-  );
+  const filterCounts = useMemo(() => {
+    return {
+      all: verifiedAttractions.length,
+      Geologi: verifiedAttractions.filter((a) => a.type === "Geologi").length,
+      Biologi: verifiedAttractions.filter((a) => a.type === "Biologi").length,
+      Budaya: verifiedAttractions.filter((a) => a.type === "Budaya").length,
+    };
+  }, [verifiedAttractions]);
 
   const getAverageRating = (reviews: Review[] | null | undefined) => {
     if (!reviews || !Array.isArray(reviews) || reviews.length === 0) return 0;

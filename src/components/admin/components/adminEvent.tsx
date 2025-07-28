@@ -2,7 +2,7 @@
 
 import type React from "react";
 import { useState, useEffect, useRef } from "react";
-import useSWR from "swr";
+import useSWR, { mutate } from "swr";
 import {
   PlusCircle,
   Search,
@@ -181,7 +181,7 @@ export default function EventPage() {
     error: eventError,
     isLoading: isLoadingEvents,
     mutate: mutateEvents,
-  } = useSWR<Event[]>("/api/event", eventFetcher, {
+  } = useSWR<Event[]>("/api/admin/event", eventFetcher, {
     revalidateOnFocus: false,
     revalidateOnReconnect: true,
     dedupingInterval: 5000,
@@ -318,6 +318,8 @@ export default function EventPage() {
         method: "POST",
         body: formData,
       });
+      mutate("/api/event");
+      mutate("/api/admin/event");
 
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -406,6 +408,8 @@ export default function EventPage() {
         method: "PUT",
         body: formData,
       });
+      mutate("/api/event");
+      mutate("/api/admin/event");
 
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -456,6 +460,8 @@ export default function EventPage() {
       const response = await fetch(`/api/event?id=${eventToDelete.id}`, {
         method: "DELETE",
       });
+      mutate("/api/event");
+      mutate("/api/admin/event");
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -515,6 +521,8 @@ export default function EventPage() {
         },
         body: JSON.stringify({ isVerified: newVerificationStatus }),
       });
+      mutate("/api/event");
+      mutate("/api/admin/event");
 
       // Parse the response
       const result = await response.json();

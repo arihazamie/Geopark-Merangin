@@ -45,10 +45,7 @@ interface Event {
   category?: string;
 }
 
-const fetcher = (url: string) =>
-  fetch(url)
-    .then((res) => res.json())
-    .then((json: Event[]) => json.filter((item) => item.isVerified));
+const fetcher = (url: string) => fetch(url).then((res) => res.json()); // ✅ Ambil semua event
 
 export default function EventsPage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -61,18 +58,19 @@ export default function EventsPage() {
     revalidateOnFocus: false,
   });
 
-  const filteredEvents = useMemo(() => {
-    if (!events) return [];
-    if (searchQuery.trim() === "") return events;
+  const verifiedEvents = useMemo(() => {
+    return (events || []).filter((item) => item.isVerified);
+  }, [events]);
 
+  const verifiedFilteredEvents = useMemo(() => {
     const query = searchQuery.toLowerCase();
-    return events.filter(
+    return verifiedEvents.filter(
       (event) =>
         event.title?.toLowerCase().includes(query) ||
         event.description?.toLowerCase().includes(query) ||
         event.location?.toLowerCase().includes(query)
     );
-  }, [events, searchQuery]);
+  }, [verifiedEvents, searchQuery]);
 
   const formatDateRange = (startDate: string, endDate: string) => {
     const start = new Date(startDate);
@@ -161,9 +159,9 @@ export default function EventsPage() {
           </div>
         ) : (
           <>
-            {filteredEvents.length > 0 ? (
+            {verifiedFilteredEvents.length > 0 ? (
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {filteredEvents.map((event) => (
+                {verifiedFilteredEvents.map((event) => (
                   <Link
                     key={event.id}
                     href={`/event/${event.id}`}

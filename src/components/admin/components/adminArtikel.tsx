@@ -2,7 +2,7 @@
 
 import type React from "react";
 import { useState, useEffect, useRef } from "react";
-import useSWR from "swr";
+import useSWR, { mutate } from "swr";
 import {
   PlusCircle,
   Search,
@@ -162,7 +162,7 @@ export default function ArtikelPage() {
     error,
     isLoading,
     mutate: mutateArtikel,
-  } = useSWR<Artikel[]>("/api/artikel", artikelFetcher, {
+  } = useSWR<Artikel[]>("/api/admin/artikel", artikelFetcher, {
     revalidateOnFocus: false,
     revalidateOnReconnect: true,
     dedupingInterval: 5000,
@@ -279,6 +279,8 @@ export default function ArtikelPage() {
         method: "POST",
         body: formData,
       });
+      mutate("/api/artikel");
+      mutate("/api/admin/artikel");
 
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -353,6 +355,8 @@ export default function ArtikelPage() {
         method: "PUT",
         body: formData,
       });
+      mutate("/api/artikel");
+      mutate("/api/admin/artikel");
 
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -407,6 +411,8 @@ export default function ArtikelPage() {
       const response = await fetch(`/api/artikel?id=${artikelToDelete.id}`, {
         method: "DELETE",
       });
+      mutate("/api/artikel");
+      mutate("/api/admin/artikel");
 
       const result = await response.json();
 
@@ -468,6 +474,8 @@ export default function ArtikelPage() {
           isVerified: newVerificationStatus,
         }),
       });
+      mutate("/api/artikel");
+      mutate("/api/admin/artikel");
 
       const result = await response.json();
 

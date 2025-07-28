@@ -56,7 +56,7 @@ import { LoadingCards } from "@/components/ui/loading-spinner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import Image from "next/image";
 import MapLocationPicker from "./map-location-picker";
-import useSWR from "swr";
+import useSWR, { mutate } from "swr";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -143,8 +143,6 @@ export default function WisataPage() {
     "all"
   );
   const [formError, setFormError] = useState<string | null>(null);
-  const [latitude, setLatitude] = useState<number | null>(null);
-  const [longitude, setLongitude] = useState<number | null>(null);
 
   // Map picker states
   const [selectedLatitude, setSelectedLatitude] = useState<number>(-6.2);
@@ -157,8 +155,22 @@ export default function WisataPage() {
   const addFormRef = useRef<HTMLFormElement>(null);
   const editFormRef = useRef<HTMLFormElement>(null);
 
-  const { data, error, isLoading, mutate } = useSWR("/api/wisata", fetcher);
-  const wisataData: Wisata[] = useMemo(() => data?.data || [], [data?.data]);
+  const {
+    data,
+    error,
+    isLoading,
+    mutate: mutateWisata,
+  } = useSWR("/api/wisata", fetcher, {
+    revalidateOnFocus: true,
+    revalidateOnReconnect: true,
+    revalidateOnMount: true, // <--- ini penting
+    dedupingInterval: 3000,
+  });
+
+  const wisataData: Wisata[] = useMemo(() => {
+    if (!data || !data.data) return [];
+    return data.data;
+  }, [data]);
 
   useEffect(() => {
     if (wisataData && wisataData.length > 0) {
@@ -249,6 +261,7 @@ export default function WisataPage() {
         body: formData,
       });
       mutate("/api/wisata");
+      mutateWisata();
 
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -305,6 +318,7 @@ export default function WisataPage() {
         body: formData,
       });
       mutate("/api/wisata");
+      mutateWisata();
 
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -344,6 +358,7 @@ export default function WisataPage() {
         method: "DELETE",
       });
       mutate("/api/wisata");
+      mutateWisata();
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -382,7 +397,8 @@ export default function WisataPage() {
   };
 
   const handleRetry = () => {
-    mutate();
+    mutate("/api/wisata");
+    mutateWisata();
   };
 
   // Error state
@@ -1003,9 +1019,9 @@ export default function WisataPage() {
                           <SelectValue placeholder="Pilih tipe wisata" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="geologi">Geologi</SelectItem>
-                          <SelectItem value="biologi">Biologi</SelectItem>
-                          <SelectItem value="budaya">Budaya</SelectItem>
+                          <SelectItem value="Geologi">Geologi</SelectItem>
+                          <SelectItem value="Biologi">Biologi</SelectItem>
+                          <SelectItem value="Budaya">Budaya</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>

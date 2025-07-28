@@ -3,13 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/authRoute";
 import { prisma } from "@/lib/prisma";
 
-/**
- * Handler untuk memperbarui status verifikasi artikel.
- * Hanya admin yang dapat mengakses endpoint ini untuk memverifikasi atau membatalkan verifikasi artikel.
- *
- * @param {NextRequest} req - Objek request dari Next.js
- * @returns {Promise<NextResponse>} - Response berisi status dan data artikel yang diperbarui
- */
 export async function PUT(req: NextRequest) {
   try {
     // Validasi sesi untuk peran ADMIN
@@ -107,6 +100,55 @@ export async function PUT(req: NextRequest) {
     });
   } catch (error) {
     console.error("Gagal memperbarui status verifikasi artikel:", {
+      error: error instanceof Error ? error.stack : error,
+      requestUrl: req.url,
+    });
+    const message =
+      error instanceof Error ? error.message : "Kesalahan Server Internal";
+    return NextResponse.json({ error: message }, { status: 500 });
+  } finally {
+    await prisma.$disconnect().catch((err: Error) => {
+      console.warn("Gagal memutuskan koneksi Prisma:", err);
+    });
+  }
+}
+
+export async function GET(req: NextRequest) {
+  try {
+    // Validasi sesi untuk peran ADMIN
+    const session = await getSession({
+      allowedRoles: ["ADMIN"],
+      redirectTo: "/",
+    });
+    if (!session) {
+      return NextResponse.json(
+        { error: "Autentikasi diperlukan" },
+        { status: 401 }
+      );
+    }
+
+    const adminId = parseInt(session.user.id);
+    if (isNaN(adminId)) {
+      return NextResponse.json(
+        { error: "ID admin dalam sesi tidak valid" },
+        { status: 500 }
+      );
+    }
+
+    const artikel = await prisma.artikel.findMany({
+      include: {
+        updatedBy: {
+          select: { id: true, name: true, email: true },
+        },
+        pengelola: {
+          select: { id: true, name: true },
+        },
+      },
+    });
+
+    return NextResponse.json(artikel);
+  } catch (error) {
+    console.error("Gagal mengambil artikel:", {
       error: error instanceof Error ? error.stack : error,
       requestUrl: req.url,
     });

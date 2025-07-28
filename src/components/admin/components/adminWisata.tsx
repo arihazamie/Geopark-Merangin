@@ -2,7 +2,7 @@
 
 import type React from "react";
 import { useState, useEffect, useRef } from "react";
-import useSWR from "swr";
+import useSWR, { mutate } from "swr";
 import {
   Landmark,
   PlusCircle,
@@ -165,7 +165,7 @@ export default function WisataPage() {
     error,
     isLoading,
     mutate: mutateWisata,
-  } = useSWR<Wisata[]>("/api/wisata", fetcher, {
+  } = useSWR<Wisata[]>("/api/admin/wisata", fetcher, {
     revalidateOnFocus: false,
     revalidateOnReconnect: true,
     dedupingInterval: 5000,
@@ -364,6 +364,8 @@ export default function WisataPage() {
         method: "POST",
         body: formData,
       });
+      mutateWisata();
+      mutate("/api/wisata");
 
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -475,6 +477,8 @@ export default function WisataPage() {
           body: formData,
         }
       );
+      mutateWisata();
+      mutate("/api/wisata");
 
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -531,6 +535,8 @@ export default function WisataPage() {
       const response = await fetch(`/api/wisata?id=${wisataToDelete.id}`, {
         method: "DELETE",
       });
+      mutateWisata();
+      mutate("/api/wisata");
 
       if (!response.ok) {
         let errorMessage = `Server error: ${response.status} ${response.statusText}`;
@@ -592,6 +598,8 @@ export default function WisataPage() {
         method: "PUT",
         body: formData,
       });
+      mutateWisata();
+      mutate("/api/wisata");
 
       if (!response.ok) {
         const errorData = await response.json();

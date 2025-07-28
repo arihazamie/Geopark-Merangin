@@ -107,8 +107,19 @@ export default function PengelolaEvent() {
   const addFormRef = useRef<HTMLFormElement>(null);
   const editFormRef = useRef<HTMLFormElement>(null);
 
-  const { data, error, isLoading, mutate } = useSWR("/api/event", fetcher);
-  const eventData: Event[] = useMemo(() => data || [], [data]);
+  const { data, error, isLoading, mutate } = useSWR("/api/event", fetcher, {
+    revalidateOnFocus: true,
+    revalidateOnReconnect: true,
+    revalidateOnMount: true, // <--- ini penting
+    dedupingInterval: 3000,
+  });
+  const eventData: Event[] = useMemo(() => {
+    if (!Array.isArray(data)) return [];
+    return data.map((event) => ({
+      ...event,
+      isVerified: event.isVerified ?? false, // fallback jika undefined
+    }));
+  }, [data]);
 
   useEffect(() => {
     fetchWisataList();
@@ -122,7 +133,9 @@ export default function PengelolaEvent() {
       if (activeTab === "verified") {
         filtered = filtered.filter((event: Event) => event.isVerified);
       } else if (activeTab === "unverified") {
-        filtered = filtered.filter((event: Event) => !event.isVerified);
+        filtered = filtered.filter(
+          (event: Event) => event.isVerified === false
+        );
       }
 
       // Filter by search term
