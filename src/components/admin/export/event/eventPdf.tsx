@@ -9,6 +9,7 @@ interface FormattedEventData {
   pengelolaName: string;
   status: string; // "Verified" or "Not Verified"
   startDate: string;
+  endDate: string;
   createdDate: string;
   updatedBy: string;
 }
@@ -59,10 +60,13 @@ export function EventPdfDocument({ data }: EventPdfDocumentProps) {
               <Text>Nama Event</Text>
             </View>
             <View style={[styles.tableColHeader, styles.addressCol]}>
-              <Text>Lokasi Wisata</Text>
+              <Text>Lokasi Event Wisata</Text>
             </View>
             <View style={[styles.tableColHeader, styles.dateCol]}>
-              <Text>Tanggal</Text>
+              <Text>Tanggal Mulai</Text>
+            </View>
+            <View style={[styles.tableColHeader, styles.dateCol]}>
+              <Text>Tanggal Selesai</Text>
             </View>
             <View style={[styles.tableColHeader, styles.verificationCol]}>
               <Text>Status Verifikasi</Text>
@@ -85,6 +89,9 @@ export function EventPdfDocument({ data }: EventPdfDocumentProps) {
               </View>
               <View style={[styles.tableCol, styles.dateCol]}>
                 <Text>{item.startDate}</Text>
+              </View>
+              <View style={[styles.tableCol, styles.dateCol]}>
+                <Text>{item.endDate}</Text>
               </View>
               <View style={[styles.tableCol, styles.verificationCol]}>
                 <Text
