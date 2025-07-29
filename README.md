@@ -8,7 +8,7 @@ All rights reserved. Unauthorized use is prohibited.
 
 A web-based tourism promotion information system for **Geopark Merangin**, designed to facilitate the dissemination of geotourism destination information and increase tourist interest and visits through interactive digital media.
 
-🔗 Live Website: [https://geoparkmerangin.vercel.app](https://geoparkmerangin.vercel.app)  
+🔗 Live Website:[https://arihazamie.my.id](https://arihazamie.my.idarihazamie.my.id) and [https://geoparkmerangin.vercel.app](https://geoparkmerangin.vercel.app)
 📦 GitHub Repo: [https://github.com/arihazamie/Geopark-Merangin](https://github.com/arihazamie/Geopark-Merangin)
 
 ---
