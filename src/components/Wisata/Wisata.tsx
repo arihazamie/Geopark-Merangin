@@ -2,7 +2,7 @@
 
 import type React from "react";
 import { useState, useMemo } from "react";
-import useSWR from "swr";
+import useSWR, { mutate } from "swr";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
