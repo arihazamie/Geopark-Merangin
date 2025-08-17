@@ -1,3 +1,4 @@
+"use client";
 import ArticlesPage from "@/components/Artikel/Artikel";
 
 const Page = () => {

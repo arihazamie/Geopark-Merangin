@@ -1,3 +1,4 @@
+"use client";
 import EventsPage from "@/components/Event/Event";
 
 const Page = () => {
