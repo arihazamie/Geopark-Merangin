@@ -151,6 +151,7 @@ export default function ArticlesPage() {
                           src={article.image || "/placeholder.svg"}
                           alt={article.title}
                           fill
+                          priority={true}
                           className="object-cover transition-transform duration-300 group-hover:scale-105"
                         />
                         {article.category && (

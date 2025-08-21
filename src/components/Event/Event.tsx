@@ -172,6 +172,7 @@ export default function EventsPage() {
                           src={event.image || "/placeholder.svg"}
                           alt={event.title}
                           fill
+                          priority={true}
                           className="object-cover transition-transform duration-300 group-hover:scale-105"
                         />
                         {event.category && (

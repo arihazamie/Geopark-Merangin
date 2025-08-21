@@ -218,6 +218,7 @@ export default function WisataTabs() {
                         src={attraction.images[0] || "/placeholder.svg"}
                         alt={attraction.name}
                         fill
+                        priority={true}
                         className="object-cover transition-transform duration-300 group-hover:scale-105"
                       />
                       {attraction.type && (
